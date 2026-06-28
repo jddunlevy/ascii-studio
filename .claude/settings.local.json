@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd C:\\\\Users\\\\jaxon\\\\code\\\\ascii-studio:*)",
+      "Bash(cat:*)",
+      "Bash(test:*)",
+      "Bash(echo TypeScript compilation: SUCCESS \\(exit code 0\\):*)",
+      "Bash(cd /c/Users/jaxon/code/ascii-studio && npx vitest run lib/composition/storage.test.ts 2>&1)",
+      "Bash(cd:*)"
+    ]
+  }
+}
