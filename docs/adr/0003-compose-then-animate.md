@@ -1,0 +1,3 @@
+# Compose-then-animate interaction model
+
+Users build a static scene first (place and style elements on the canvas), then wire audio signals to visual properties via the binding panel. The audio does not spawn or destroy elements. This was chosen over a fully generative model — where audio drives element creation — because it produces a predictable, inspectable scene, reuses the ascii-editor canvas and element system directly, and gives users a clear mental model: "build your stage, then wire it up." Generative spawning can be added later as a special binding target (e.g. signal controls the opacity or clone-count of a template element).

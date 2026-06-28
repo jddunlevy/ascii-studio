@@ -1,0 +1,3 @@
+# DOM-based rendering, not canvas or WebGL
+
+The visual output is rendered as absolutely-positioned DOM elements — ASCII art as `<pre>` tags, styled with inline CSS — matching the ascii-editor rendering model exactly. Most audio visualizers use an HTML `<canvas>` or WebGL for performance, but this project's visual primitives are characters, not pixels. DOM rendering means visual properties (hue, fontSize, x, y, rotation, opacity) are CSS properties updated on each animation frame, which is sufficient at the element counts expected in a composed scene. The payoff is direct reuse of ascii-editor's element, inspector, and canvas infrastructure with no rewrite.
