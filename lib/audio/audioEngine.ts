@@ -17,6 +17,7 @@ export class AudioEngine {
   private startedAt = 0;
   private pausedAt = 0;
   private isPlaying = false;
+  private loopEnabled = false;
   private freqData: Uint8Array<ArrayBuffer> = new Uint8Array(0) as Uint8Array<ArrayBuffer>;
   private timeData: Uint8Array<ArrayBuffer> = new Uint8Array(0) as Uint8Array<ArrayBuffer>;
 
@@ -55,6 +56,7 @@ export class AudioEngine {
     const startOffset = offset !== undefined ? offset : this.pausedAt;
     this.sourceNode = this.ctx.createBufferSource();
     this.sourceNode.buffer = this.audioBuffer;
+    this.sourceNode.loop = this.loopEnabled;
     this.sourceNode.connect(this.analyser);
     this.sourceNode.start(0, startOffset);
     this.startedAt = this.ctx.currentTime - startOffset;
@@ -104,6 +106,7 @@ export class AudioEngine {
   }
 
   setLoop(loop: boolean): void {
+    this.loopEnabled = loop;
     if (this.sourceNode) {
       this.sourceNode.loop = loop;
     }
