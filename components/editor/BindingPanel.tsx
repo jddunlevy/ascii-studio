@@ -4,10 +4,12 @@ import { nanoid } from 'nanoid';
 import useStudioStore from '@/lib/store/studioStore';
 import type { Binding } from '@/lib/types';
 import { BindingRow } from './BindingRow';
+import { BindingPresets } from './binding/BindingPresets';
 
 export function BindingPanel() {
   const composition = useStudioStore((s) => s.composition);
   const addBinding = useStudioStore((s) => s.addBinding);
+  const selectedElementId = useStudioStore((s) => s.selectedElementId);
 
   const bindings = composition?.bindings ?? [];
   const firstElementId = composition?.elements[0]?.id ?? '';
@@ -44,6 +46,8 @@ export function BindingPanel() {
           ADD BINDING +
         </button>
       </div>
+
+      <BindingPresets elementId={selectedElementId ?? ''} />
 
       {bindings.length === 0 ? (
         <div style={{ padding: '12px 8px', color: 'var(--muted)', fontSize: 11 }}>
