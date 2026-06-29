@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
-  DragOverlay,
   useSensor,
   useSensors,
   PointerSensor,
@@ -22,7 +21,6 @@ export function EditorShell() {
   const activeTab = useStudioStore((s) => s.activeTab);
   const setActiveTab = useStudioStore((s) => s.setActiveTab);
   const addElement = useStudioStore((s) => s.addElement);
-  const updateElement = useStudioStore((s) => s.updateElement);
   const composition = useStudioStore((s) => s.composition);
   const compositionName = composition?.name ?? 'untitled';
   const updateCompositionName = useStudioStore((s) => s.updateCompositionName);
@@ -40,28 +38,11 @@ export function EditorShell() {
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over, delta } = event;
+    const { active, over } = event;
     const grid = composition?.canvas.grid ?? 8;
     const canvas = composition?.canvas ?? { width: 1200, height: 800, grid: 8 };
 
-    // Dragging an existing element — clamp to canvas bounds
-    if (active.data.current?.type === 'element') {
-      const elementId = active.data.current.elementId as string;
-      const element = composition?.elements.find((el) => el.id === elementId);
-      if (!element) return;
-      const newX = Math.max(0, Math.min(
-        canvas.width - element.size.w,
-        snapToGrid(element.position.x + delta.x, grid)
-      ));
-      const newY = Math.max(0, Math.min(
-        canvas.height - element.size.h,
-        snapToGrid(element.position.y + delta.y, grid)
-      ));
-      updateElement(elementId, { position: { x: newX, y: newY } });
-      return;
-    }
-
-    // Dropping a palette item onto the canvas
+    // Palette item dropped onto canvas
     if (
       active.data.current?.type === 'palette-item' &&
       over?.id === 'canvas-droppable'
@@ -70,7 +51,8 @@ export function EditorShell() {
       const paletteDef = PALETTE_ITEMS.find((p) => p.id === itemId);
       if (!paletteDef) return;
 
-      // Use the dragged item's final screen rect relative to the canvas droppable rect
+      // active.rect.current.translated = final screen rect of the dragged item
+      // over.rect = screen rect of the canvas droppable
       const activeRect = active.rect.current.translated;
       const canvasRect = over.rect;
       if (!activeRect || !canvasRect) return;

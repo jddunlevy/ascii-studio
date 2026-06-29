@@ -1,8 +1,6 @@
 // components/editor/ElementWrapper.tsx
 'use client';
 import { useRef } from 'react';
-import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import useStudioStore from '@/lib/store/studioStore';
 import { ElementRenderer } from './ElementRenderer';
 import type { Element } from '@/lib/types';
@@ -16,22 +14,91 @@ interface ElementWrapperProps {
 export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapperProps) {
   const liveValues = useStudioStore((s) => s.liveValues);
   const updateElement = useStudioStore((s) => s.updateElement);
+  const canvasConfig = useStudioStore((s) => s.composition?.canvas ?? { width: 1200, height: 800, grid: 8 });
   const liveOverride = liveValues[element.id];
 
-  // Apply live position offsets if present
-  const x = element.position.x + (liveOverride?.x ?? 0);
-  const y = element.position.y + (liveOverride?.y ?? 0);
-  const rotation = (liveOverride?.rotation ?? element.rotation);
+  const rotation = liveOverride?.rotation ?? element.rotation;
   const opacity = liveOverride?.opacity ?? element.opacity;
 
-  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
-    id: element.id,
-    disabled: element.locked,
-    data: { type: 'element', elementId: element.id },
-  });
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // Drag state — all in refs so we never trigger React re-renders during drag
+  const dragActive = useRef(false);
+  const dragOrigin = useRef({ mouseX: 0, mouseY: 0, elemX: 0, elemY: 0 });
+
+  // Resize state
   const resizingRef = useRef(false);
   const resizeStart = useRef({ mouseX: 0, mouseY: 0, w: 0, h: 0 });
+
+  function snap(val: number) {
+    return Math.round(val / canvasConfig.grid) * canvasConfig.grid;
+  }
+
+  function clampX(val: number) {
+    return Math.max(0, Math.min(canvasConfig.width - element.size.w, val));
+  }
+
+  function clampY(val: number) {
+    return Math.max(0, Math.min(canvasConfig.height - element.size.h, val));
+  }
+
+  function handleMouseDown(e: React.MouseEvent) {
+    if (element.locked) return;
+    // Let resize handle handle itself
+    if ((e.target as HTMLElement).closest('[data-resize]')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect();
+
+    dragActive.current = true;
+    dragOrigin.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      // Drag from stored position so audio overrides don't cause a jump
+      elemX: element.position.x,
+      elemY: element.position.y,
+    };
+
+    if (wrapperRef.current) wrapperRef.current.style.cursor = 'grabbing';
+
+    function onMouseMove(ev: MouseEvent) {
+      if (!dragActive.current || !wrapperRef.current) return;
+      const dx = ev.clientX - dragOrigin.current.mouseX;
+      const dy = ev.clientY - dragOrigin.current.mouseY;
+      // Clamp in real time — element can never visually leave the canvas
+      const nx = clampX(dragOrigin.current.elemX + dx);
+      const ny = clampY(dragOrigin.current.elemY + dy);
+      // Imperative DOM update: no React re-render during drag
+      wrapperRef.current.style.left = `${nx}px`;
+      wrapperRef.current.style.top = `${ny}px`;
+    }
+
+    function onMouseUp(ev: MouseEvent) {
+      if (!dragActive.current) return;
+      dragActive.current = false;
+
+      const dx = ev.clientX - dragOrigin.current.mouseX;
+      const dy = ev.clientY - dragOrigin.current.mouseY;
+      const nx = snap(clampX(dragOrigin.current.elemX + dx));
+      const ny = snap(clampY(dragOrigin.current.elemY + dy));
+
+      // Commit to store — one React re-render, no snap-back glitch
+      updateElement(element.id, { position: { x: nx, y: ny } });
+
+      if (wrapperRef.current) {
+        wrapperRef.current.style.left = `${nx}px`;
+        wrapperRef.current.style.top = `${ny}px`;
+        wrapperRef.current.style.cursor = 'grab';
+      }
+
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
 
   function startResize(e: React.MouseEvent) {
     e.stopPropagation();
@@ -66,29 +133,28 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
     window.addEventListener('mouseup', onMouseUp);
   }
 
+  // Visual position: stored + audio live override (not used during drag — drag updates DOM directly)
+  const visualX = element.position.x + (liveOverride?.x ?? 0);
+  const visualY = element.position.y + (liveOverride?.y ?? 0);
+
   return (
     <div
-      ref={setNodeRef}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('[data-resize]')) {
-          onSelect();
-        }
-      }}
+      ref={wrapperRef}
+      onMouseDown={handleMouseDown}
       style={{
         position: 'absolute',
-        left: x,
-        top: y,
+        left: visualX,
+        top: visualY,
         width: element.size.w,
         height: element.size.h,
-        transform: `${CSS.Translate.toString(transform)} rotate(${rotation}deg)`,
+        transform: `rotate(${rotation}deg)`,
         opacity,
         zIndex: element.z,
         outline: isSelected ? '1px solid var(--accent)' : '1px solid transparent',
-        cursor: isDragging ? 'grabbing' : element.locked ? 'default' : 'grab',
+        cursor: element.locked ? 'default' : 'grab',
         userSelect: 'none',
         overflow: 'hidden',
       }}
-      {...(element.locked ? {} : { ...listeners, ...attributes })}
     >
       <ElementRenderer element={element} liveOverride={liveOverride} />
 
@@ -122,6 +188,7 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
             height: 10,
             background: 'var(--accent)',
             cursor: 'se-resize',
+            zIndex: 2,
           }}
         />
       )}
@@ -135,6 +202,7 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
             right: 4,
             fontSize: 9,
             color: 'var(--muted)',
+            zIndex: 2,
           }}
         >
           □
