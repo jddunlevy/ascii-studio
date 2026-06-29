@@ -8,6 +8,7 @@ import type {
   LiveElementOverride,
 } from '@/lib/types';
 import { SPRITE_CONTENT } from '@/lib/library/sprites';
+import { VisualizerRenderer } from './visualizer/VisualizerRenderer';
 
 const FONT_MAP: Record<string, string> = {
   'jetbrains-mono': "'JetBrains Mono', monospace",
@@ -132,9 +133,21 @@ function DecorativeRenderer({
 interface ElementRendererProps {
   element: Element;
   liveOverride?: Partial<LiveElementOverride>;
+  // Audio data for visualizer elements — undefined for non-visualizer elements
+  audioSignal?: number;
+  freqData?: Uint8Array;
+  isPlaying?: boolean;
+  sampleRate?: number;
 }
 
-export function ElementRenderer({ element, liveOverride }: ElementRendererProps) {
+export function ElementRenderer({
+  element,
+  liveOverride,
+  audioSignal,
+  freqData,
+  isPlaying,
+  sampleRate,
+}: ElementRendererProps) {
   switch (element.type) {
     case 'text':
       return <TextRenderer el={element} override={liveOverride} />;
@@ -144,5 +157,15 @@ export function ElementRenderer({ element, liveOverride }: ElementRendererProps)
       return <DividerRenderer el={element} override={liveOverride} />;
     case 'decorative':
       return <DecorativeRenderer el={element} override={liveOverride} />;
+    case 'visualizer':
+      return (
+        <VisualizerRenderer
+          element={element}
+          signal={audioSignal ?? 0}
+          freqData={freqData ?? new Uint8Array(0)}
+          isPlaying={isPlaying ?? false}
+          sampleRate={sampleRate ?? 44100}
+        />
+      );
   }
 }
