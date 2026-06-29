@@ -5,6 +5,7 @@ import type {
   Element,
   Binding,
   LiveValues,
+  BackgroundConfig,
 } from '@/lib/types';
 import { saveComposition } from '@/lib/composition/storage';
 
@@ -34,6 +35,7 @@ interface StudioState {
       Pick<StudioState, 'isPlaying' | 'currentTime' | 'duration' | 'loop'>
     >
   ): void;
+  updateBackground(changes: Partial<BackgroundConfig>): void;
   persistComposition(): void;
 }
 
@@ -151,6 +153,18 @@ const useStudioStore = create<StudioState>((set, get) => ({
 
   setPlayback(state) {
     set(state);
+  },
+
+  updateBackground(changes) {
+    set((s) => {
+      if (!s.composition) return s;
+      return {
+        composition: {
+          ...s.composition,
+          background: { ...(s.composition.background ?? {}), ...changes } as BackgroundConfig,
+        },
+      };
+    });
   },
 
   persistComposition() {

@@ -6,6 +6,7 @@ import type {
   ElementColor,
   FontName,
   CanvasConfig,
+  BackgroundConfig,
 } from '@/lib/types';
 
 export const DEFAULT_FONT: FontName = 'jetbrains-mono';
@@ -18,6 +19,17 @@ const DEFAULT_CANVAS: CanvasConfig = {
   grid: 8,
 };
 
+export const DEFAULT_BACKGROUND: BackgroundConfig = {
+  enabled: true,
+  baseHue: 0,
+  hueCount: 3,
+  angle: 135,
+  speed: 1,
+  minOpacity: 0.45,
+  maxOpacity: 0.85,
+  bassMultiplier: 3,
+};
+
 export function createComposition(name: string): CompositionSpec {
   const now = new Date().toISOString();
   return {
@@ -28,6 +40,7 @@ export function createComposition(name: string): CompositionSpec {
     canvas: { ...DEFAULT_CANVAS },
     elements: [],
     bindings: [],
+    background: { ...DEFAULT_BACKGROUND },
   };
 }
 

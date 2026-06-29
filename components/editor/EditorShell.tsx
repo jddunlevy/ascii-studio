@@ -15,6 +15,7 @@ import { Palette } from './Palette';
 import { BindingPanel } from './BindingPanel';
 import { Inspector } from './Inspector';
 import { AudioPlayer } from './AudioPlayer';
+import { BackgroundPanel } from './BackgroundPanel';
 import { CompositionModal } from '@/components/compositions/CompositionModal';
 
 export function EditorShell() {
@@ -215,6 +216,7 @@ export function EditorShell() {
             }}
           >
             <Inspector />
+            <BackgroundPanel />
           </div>
         </div>
 

@@ -102,6 +102,17 @@ export interface CanvasConfig {
   grid: number;
 }
 
+export interface BackgroundConfig {
+  enabled: boolean;
+  baseHue: number;        // starting hue 0–360
+  hueCount: number;       // number of gradient stops 2–6
+  angle: number;          // gradient direction in degrees
+  speed: number;          // hue drift speed multiplier 0–5
+  minOpacity: number;     // opacity when silent 0–1
+  maxOpacity: number;     // opacity at peak volume 0–1
+  bassMultiplier: number; // how much bass accelerates the drift 0–5
+}
+
 export interface CompositionSpec {
   id: string;
   name: string;
@@ -110,4 +121,5 @@ export interface CompositionSpec {
   canvas: CanvasConfig;
   elements: Element[];
   bindings: Binding[];
+  background?: BackgroundConfig;
 }

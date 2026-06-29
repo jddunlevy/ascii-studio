@@ -2,6 +2,8 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { audioEngine } from '@/lib/audio/audioEngine';
+import useStudioStore from '@/lib/store/studioStore';
+import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
 
 export function CanvasBackground() {
   const divRef = useRef<HTMLDivElement>(null);
@@ -11,19 +13,31 @@ export function CanvasBackground() {
     let raf: number;
 
     function tick() {
+      // Read config fresh each frame — no React subscription needed
+      const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
+
+      if (!cfg.enabled) {
+        if (divRef.current) divRef.current.style.opacity = '0';
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+
       const s = audioEngine.getSignals();
-      // Hue drifts continuously; bass pushes it faster
-      hueRef.current = (hueRef.current + 0.4 + s.bass * 3) % 360;
-      const h = hueRef.current;
-      // Opacity swells with volume
-      const opacity = 0.45 + s.volume * 0.4;
+
+      // Advance hue by speed + bass acceleration
+      hueRef.current = (hueRef.current + cfg.speed * 0.4 + s.bass * cfg.bassMultiplier) % 360;
+
+      // Build evenly-spaced hue stops around the wheel
+      const stops = Array.from({ length: cfg.hueCount }, (_, i) => {
+        const h = (hueRef.current + cfg.baseHue + (360 / cfg.hueCount) * i) % 360;
+        return `hsl(${h}deg, 90%, 38%)`;
+      }).join(', ');
+
+      const opacity = cfg.minOpacity + s.volume * (cfg.maxOpacity - cfg.minOpacity);
 
       if (divRef.current) {
-        divRef.current.style.background = `linear-gradient(135deg,
-          hsl(${h}deg, 90%, 40%),
-          hsl(${(h + 120) % 360}deg, 85%, 35%),
-          hsl(${(h + 240) % 360}deg, 90%, 38%))`;
-        divRef.current.style.opacity = String(opacity);
+        divRef.current.style.background = `linear-gradient(${cfg.angle}deg, ${stops})`;
+        divRef.current.style.opacity = String(Math.min(1, Math.max(0, opacity)));
       }
 
       raf = requestAnimationFrame(tick);
@@ -40,7 +54,6 @@ export function CanvasBackground() {
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        // color blend: tints the canvas surface without blowing out lightness
         mixBlendMode: 'color',
         zIndex: 0,
       }}
