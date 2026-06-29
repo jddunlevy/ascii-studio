@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import type { VisualizerElement } from '@/lib/types';
 import { calculateBarAmplitudes, smoothAmplitudes, applyDecay } from '@/lib/audio/SpectrumCalculator';
 
@@ -7,17 +7,17 @@ interface SpectrumRendererProps {
   element: VisualizerElement;
   freqData: Uint8Array;
   isPlaying: boolean;
+  sampleRate: number;
 }
 
-export function SpectrumRenderer({ element, freqData, isPlaying }: SpectrumRendererProps) {
+export function SpectrumRenderer({ element, freqData, isPlaying, sampleRate }: SpectrumRendererProps) {
   const previousAmpsRef = useRef<number[]>([]);
 
   if (!element.spectrum) {
     return <div>No spectrum config</div>;
   }
 
-  const { barCount, freqRanges, barChar, direction, spacing, smoothing, peakHold, decaySpeed } = element.spectrum;
-  const sampleRate = 44100; // Typical sample rate
+  const { barCount, freqRanges, barChar, direction, spacing, smoothing, decaySpeed } = element.spectrum;
 
   // Calculate bar amplitudes
   let amplitudes = isPlaying
