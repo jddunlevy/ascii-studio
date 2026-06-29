@@ -161,10 +161,6 @@ export function ElementRenderer({
       return (
         <VisualizerRenderer
           element={element}
-          signal={audioSignal ?? 0}
-          freqData={freqData ?? new Uint8Array(0)}
-          isPlaying={isPlaying ?? false}
-          sampleRate={sampleRate ?? 44100}
         />
       );
   }

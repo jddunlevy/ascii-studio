@@ -96,7 +96,15 @@ export function VisualizerPanel({ element }: VisualizerPanelProps) {
         </label>
         <select
           value={element.visualType}
-          onChange={(e) => patch({ visualType: e.target.value as VisualizerType })}
+          onChange={(e) => {
+            const newType = e.target.value as VisualizerType;
+            const validStyles = RENDER_STYLE_OPTIONS[newType];
+            const currentStyleValid = validStyles.includes(element.renderStyle as RenderStyle);
+            patch({
+              visualType: newType,
+              ...(currentStyleValid ? {} : { renderStyle: validStyles[0] }),
+            });
+          }}
           style={{ width: '100%' }}
         >
           {VISUALIZER_TYPE_OPTIONS.map((opt) => (
@@ -214,9 +222,13 @@ export function VisualizerPanel({ element }: VisualizerPanelProps) {
               min={4}
               max={32}
               value={element.spectrum?.barCount ?? 16}
-              onChange={(e) =>
-                patchSpectrum({ barCount: parseInt(e.target.value) || 16 })
-              }
+              onChange={(e) => {
+                const newBarCount = parseInt(e.target.value) || 16;
+                const newFreqRanges = Array.from({ length: newBarCount + 1 }, (_, i) =>
+                  Math.round(20 * Math.pow(20000 / 20, i / newBarCount))
+                );
+                patchSpectrum({ barCount: newBarCount, freqRanges: newFreqRanges });
+              }}
               style={{ width: '100%' }}
             />
           </Row>

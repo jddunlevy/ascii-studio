@@ -1,5 +1,7 @@
 'use client';
-import type { VisualizerElement } from '@/lib/types';
+import { useState, useEffect, useRef } from 'react';
+import type { VisualizerElement, Signals } from '@/lib/types';
+import { audioEngine } from '@/lib/audio/audioEngine';
 import { SpectrumRenderer } from './SpectrumRenderer';
 import { PulseRenderer } from './PulseRenderer';
 import { TextVisualRenderer } from './TextVisualRenderer';
@@ -7,17 +9,32 @@ import { StrobeLayer } from './StrobeLayer';
 
 interface VisualizerRendererProps {
   element: VisualizerElement;
-  signal: number;        // 0-1, current audio signal (from element.audioSignal channel)
-  freqData: Uint8Array;  // raw frequency data from analyser
-  isPlaying: boolean;
-  sampleRate: number;
+  // Remove the audio props — we read from audioEngine directly
 }
 
-export function VisualizerRenderer({
-  element, signal, freqData, isPlaying, sampleRate
-}: VisualizerRendererProps) {
-  let renderer: React.ReactNode = null;
+export function VisualizerRenderer({ element }: VisualizerRendererProps) {
+  const [signals, setSignals] = useState<Signals>({ volume: 0, bass: 0, mid: 0, treble: 0 });
+  const [freqData, setFreqData] = useState<Uint8Array>(new Uint8Array(0));
+  const [isPlaying, setIsPlaying] = useState(false);
+  const rafRef = useRef<number>(0);
 
+  useEffect(() => {
+    function tick() {
+      const sigs = audioEngine.getSignals();
+      const freq = audioEngine.getFrequencyData();
+      const playing = audioEngine.getIsPlaying();
+      setSignals(sigs);
+      setFreqData(freq.slice()); // copy to avoid stale reference
+      setIsPlaying(playing);
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  const signal = signals[element.audioSignal] ?? 0;
+
+  let renderer: React.ReactNode;
   switch (element.visualType) {
     case 'spectrum':
       renderer = (
@@ -25,7 +42,7 @@ export function VisualizerRenderer({
           element={element}
           freqData={freqData}
           isPlaying={isPlaying}
-          sampleRate={sampleRate}
+          sampleRate={44100}
         />
       );
       break;
