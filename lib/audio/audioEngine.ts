@@ -105,6 +105,14 @@ export class AudioEngine {
     return extractSignals(this.freqData, this.timeData, this.ctx.sampleRate);
   }
 
+  getFrequencyData(): Uint8Array {
+    if (!this.isPlaying || !this.analyser || !this.ctx) {
+      return new Uint8Array(0);
+    }
+    this.analyser.getByteFrequencyData(this.freqData);
+    return this.freqData;
+  }
+
   setLoop(loop: boolean): void {
     this.loopEnabled = loop;
     if (this.sourceNode) {
