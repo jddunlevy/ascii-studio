@@ -1,7 +1,8 @@
 // components/editor/Inspector.tsx
 'use client';
 import useStudioStore from '@/lib/store/studioStore';
-import type { Element, FontName } from '@/lib/types';
+import type { Element, FontName, VisualizerElement } from '@/lib/types';
+import { VisualizerPanel } from './visualizer/VisualizerPanel';
 
 const FONT_OPTIONS: { value: FontName; label: string }[] = [
   { value: 'jetbrains-mono', label: 'JetBrains Mono' },
@@ -305,6 +306,11 @@ export function Inspector(_props: InspectorProps) {
             />
           </Row>
         </>
+      )}
+
+      {/* Visualizer-specific panel */}
+      {element.type === 'visualizer' && (
+        <VisualizerPanel element={element as VisualizerElement} />
       )}
 
       {/* Lock + gradient */}
