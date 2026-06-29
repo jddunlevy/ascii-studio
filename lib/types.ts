@@ -9,7 +9,28 @@ export type VisualProperty =
   | 'opacity'
   | 'content';
 
-export type ElementType = 'text' | 'ascii_art' | 'divider' | 'decorative';
+export type VisualizerType = 'spectrum' | 'pulse' | 'text';
+
+export type RenderStyle = 'star' | 'dot' | 'wave' | 'bars' | 'block' | 'text';
+
+export interface StrobeConfig {
+  enabled: boolean;
+  threshold: number;    // 0-1, audio level that triggers strobe
+  speed: number;        // ms between flashes when active
+}
+
+export interface SpectrumConfig {
+  barCount: number;           // 4-32 bars
+  freqRanges: number[];       // frequency boundaries in Hz
+  barChar: string;            // character to render bars: █, ▓, |, etc.
+  direction: 'vertical' | 'horizontal';
+  spacing: number;            // px between bars
+  smoothing: number;          // 0-1, interpolation smoothness
+  peakHold: boolean;          // show peak indicators
+  decaySpeed: number;         // how fast bars fall (0-1)
+}
+
+export type ElementType = 'text' | 'ascii_art' | 'divider' | 'decorative' | 'visualizer';
 
 export type FontName =
   | 'jetbrains-mono'
@@ -90,11 +111,24 @@ export interface DecorativeElement extends BaseElement {
   fontSize: number;
 }
 
+export interface VisualizerElement extends BaseElement {
+  type: 'visualizer';
+  visualType: VisualizerType;
+  renderStyle: RenderStyle;
+  audioSignal: SignalName;
+  strobe: StrobeConfig;
+  spectrum?: SpectrumConfig;
+  fontSize: number;
+  font?: FontName;
+  content?: string;
+}
+
 export type Element =
   | TextElement
   | AsciiArtElement
   | DividerElement
-  | DecorativeElement;
+  | DecorativeElement
+  | VisualizerElement;
 
 export interface CanvasConfig {
   width: number;

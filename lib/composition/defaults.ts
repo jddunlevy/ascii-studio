@@ -93,5 +93,30 @@ export function createElement(
         fontSize: 13,
         size: { w: 80, h: 64 },
       };
+    case 'visualizer':
+      return {
+        ...base,
+        type: 'visualizer',
+        visualType: 'spectrum',
+        renderStyle: 'bars',
+        audioSignal: 'volume',
+        strobe: {
+          enabled: false,
+          threshold: 0.7,
+          speed: 100,
+        },
+        spectrum: {
+          barCount: 16,
+          freqRanges: [60, 250, 500, 2000, 4000, 8000, 16000],
+          barChar: '█',
+          direction: 'vertical',
+          spacing: 4,
+          smoothing: 0.8,
+          peakHold: true,
+          decaySpeed: 0.1,
+        },
+        fontSize: 13,
+        size: { w: 240, h: 120 },
+      };
   }
 }
