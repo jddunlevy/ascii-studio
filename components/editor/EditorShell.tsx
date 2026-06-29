@@ -1,6 +1,6 @@
 // components/editor/EditorShell.tsx
 'use client';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -30,7 +30,6 @@ export function EditorShell() {
   const [showModal, setShowModal] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(compositionName);
-  const canvasRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
@@ -43,14 +42,21 @@ export function EditorShell() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over, delta } = event;
     const grid = composition?.canvas.grid ?? 8;
+    const canvas = composition?.canvas ?? { width: 1200, height: 800, grid: 8 };
 
-    // Dragging an existing element
+    // Dragging an existing element — clamp to canvas bounds
     if (active.data.current?.type === 'element') {
       const elementId = active.data.current.elementId as string;
       const element = composition?.elements.find((el) => el.id === elementId);
       if (!element) return;
-      const newX = snapToGrid(element.position.x + delta.x, grid);
-      const newY = snapToGrid(element.position.y + delta.y, grid);
+      const newX = Math.max(0, Math.min(
+        canvas.width - element.size.w,
+        snapToGrid(element.position.x + delta.x, grid)
+      ));
+      const newY = Math.max(0, Math.min(
+        canvas.height - element.size.h,
+        snapToGrid(element.position.y + delta.y, grid)
+      ));
       updateElement(elementId, { position: { x: newX, y: newY } });
       return;
     }
@@ -62,21 +68,24 @@ export function EditorShell() {
     ) {
       const itemId = active.data.current.itemId as string;
       const paletteDef = PALETTE_ITEMS.find((p) => p.id === itemId);
-      if (!paletteDef || !canvasRef.current) return;
+      if (!paletteDef) return;
 
-      const canvasRect = canvasRef.current.getBoundingClientRect();
-      // Estimate drop position: use over.rect center minus canvas origin
+      // Use the dragged item's final screen rect relative to the canvas droppable rect
+      const activeRect = active.rect.current.translated;
+      const canvasRect = over.rect;
+      if (!activeRect || !canvasRect) return;
+
       const dropX = snapToGrid(
-        (over.rect?.left ?? canvasRect.left) - canvasRect.left + (over.rect?.width ?? 0) / 2,
+        Math.max(0, Math.min(canvas.width - 80, activeRect.left - canvasRect.left)),
         grid
       );
       const dropY = snapToGrid(
-        (over.rect?.top ?? canvasRect.top) - canvasRect.top + (over.rect?.height ?? 0) / 2,
+        Math.max(0, Math.min(canvas.height - 24, activeRect.top - canvasRect.top)),
         grid
       );
 
       const z = (composition?.elements.length ?? 0) + 1;
-      const el = paletteDef.createElement({ x: Math.max(0, dropX), y: Math.max(0, dropY) }, z);
+      const el = paletteDef.createElement({ x: dropX, y: dropY }, z);
       addElement(el);
     }
   }
@@ -201,12 +210,14 @@ export function EditorShell() {
 
           {/* Center canvas */}
           <div
-            ref={canvasRef}
             style={{
               flex: 1,
               overflow: 'auto',
               padding: 32,
               background: 'var(--bg)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
             }}
           >
             <Canvas />
