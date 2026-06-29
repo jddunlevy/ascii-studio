@@ -47,3 +47,8 @@ label {
   display: block;
   margin-bottom: 2px;
 }
+
+@keyframes studio-hue-shift {
+  from { filter: hue-rotate(0deg); }
+  to   { filter: hue-rotate(360deg); }
+}

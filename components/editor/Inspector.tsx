@@ -75,7 +75,7 @@ export function Inspector(_props: InspectorProps) {
 
   const hasFont = element.type === 'text' || element.type === 'ascii_art';
   const hasFontSize = element.type === 'text' || element.type === 'ascii_art' || element.type === 'decorative';
-  const hasContent = element.type === 'text';
+  const hasContent = element.type === 'text' || element.type === 'ascii_art';
   const hasPattern = element.type === 'divider';
 
   const colorPreview = `hsl(${element.color.h}, ${element.color.s}%, ${element.color.l}%)`;
@@ -307,7 +307,7 @@ export function Inspector(_props: InspectorProps) {
         </>
       )}
 
-      {/* Lock */}
+      {/* Lock + gradient */}
       <SectionHeader>OPTIONS</SectionHeader>
       <InlineRow>
         <input
@@ -318,6 +318,17 @@ export function Inspector(_props: InspectorProps) {
         />
         <label htmlFor="inspector-locked" style={{ display: 'inline', textTransform: 'none', letterSpacing: 0, color: 'var(--text)' }}>
           Locked
+        </label>
+      </InlineRow>
+      <InlineRow>
+        <input
+          type="checkbox"
+          checked={element.gradient ?? false}
+          onChange={(e) => patch({ gradient: e.target.checked })}
+          id="inspector-gradient"
+        />
+        <label htmlFor="inspector-gradient" style={{ display: 'inline', textTransform: 'none', letterSpacing: 0, color: 'var(--text)' }}>
+          Gradient overlay
         </label>
       </InlineRow>
 

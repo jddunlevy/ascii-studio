@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import useStudioStore from '@/lib/store/studioStore';
 import { ElementWrapper } from './ElementWrapper';
+import { CanvasBackground } from './CanvasBackground';
 
 export function Canvas() {
   const composition = useStudioStore((s) => s.composition);
@@ -75,17 +76,18 @@ export function Canvas() {
     };
   }, [handleKeyDown, handleGlobalKey]);
 
-  const gridStyle = gridVisible
-    ? {
-        backgroundImage: `
-          linear-gradient(to right, var(--muted) 1px, transparent 1px),
-          linear-gradient(to bottom, var(--muted) 1px, transparent 1px)
-        `,
-        backgroundSize: `${canvas.grid}px ${canvas.grid}px`,
-        backgroundPosition: '0 0',
-        opacity: 0.15,
-      }
-    : {};
+  const gridOverlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    backgroundImage: `
+      linear-gradient(to right, var(--muted) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--muted) 1px, transparent 1px)
+    `,
+    backgroundSize: `${canvas.grid}px ${canvas.grid}px`,
+    backgroundPosition: '0 0',
+    opacity: 0.15,
+    pointerEvents: 'none',
+  };
 
   return (
     <div
@@ -105,9 +107,10 @@ export function Canvas() {
         border: isOver ? '1px solid var(--accent)' : '1px solid var(--muted)',
         boxShadow: '2px 2px 0 rgba(0,0,0,0.08)',
         flexShrink: 0,
-        ...gridStyle,
       }}
     >
+      <CanvasBackground />
+      {gridVisible && <div style={gridOverlayStyle} />}
       {elements
         .slice()
         .sort((a, b) => a.z - b.z)

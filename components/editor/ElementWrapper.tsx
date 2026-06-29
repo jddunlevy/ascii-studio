@@ -2,6 +2,7 @@
 'use client';
 import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import useStudioStore from '@/lib/store/studioStore';
 import { ElementRenderer } from './ElementRenderer';
 import type { Element } from '@/lib/types';
@@ -23,7 +24,7 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
   const rotation = (liveOverride?.rotation ?? element.rotation);
   const opacity = liveOverride?.opacity ?? element.opacity;
 
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
     id: element.id,
     disabled: element.locked,
     data: { type: 'element', elementId: element.id },
@@ -79,7 +80,7 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
         top: y,
         width: element.size.w,
         height: element.size.h,
-        transform: `rotate(${rotation}deg)`,
+        transform: `${CSS.Translate.toString(transform)} rotate(${rotation}deg)`,
         opacity,
         zIndex: element.z,
         outline: isSelected ? '1px solid var(--accent)' : '1px solid transparent',
@@ -90,6 +91,23 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
       {...(element.locked ? {} : { ...listeners, ...attributes })}
     >
       <ElementRenderer element={element} liveOverride={liveOverride} />
+
+      {/* Gradient overlay */}
+      {element.gradient && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(135deg, hsl(0,100%,60%), hsl(120,100%,55%), hsl(240,100%,60%), hsl(0,100%,60%))',
+            backgroundSize: '300% 300%',
+            animation: 'studio-hue-shift 4s linear infinite',
+            mixBlendMode: 'overlay',
+            opacity: 0.65,
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+      )}
 
       {/* Resize handle — bottom-right corner */}
       {isSelected && !element.locked && (

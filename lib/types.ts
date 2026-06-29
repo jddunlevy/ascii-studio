@@ -62,6 +62,7 @@ interface BaseElement {
   opacity: number;
   color: ElementColor;
   locked: boolean;
+  gradient?: boolean;
 }
 
 export interface TextElement extends BaseElement {
