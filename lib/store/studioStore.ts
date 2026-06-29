@@ -6,6 +6,7 @@ import type {
   Binding,
   LiveValues,
   BackgroundConfig,
+  VisualizerElement,
 } from '@/lib/types';
 import { saveComposition } from '@/lib/composition/storage';
 
@@ -36,6 +37,8 @@ interface StudioState {
     >
   ): void;
   updateBackground(changes: Partial<BackgroundConfig>): void;
+  addVisualizer(visualizer: VisualizerElement): void;
+  updateVisualizer(id: string, changes: Partial<VisualizerElement>): void;
   persistComposition(): void;
 }
 
@@ -166,6 +169,34 @@ const useStudioStore = create<StudioState>((set, get) => ({
       };
     });
   },
+
+  addVisualizer: (visualizer: VisualizerElement) =>
+    set((state) => {
+      if (!state.composition) return state;
+      return {
+        composition: {
+          ...state.composition,
+          elements: [...state.composition.elements, visualizer],
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }),
+
+  updateVisualizer: (id: string, changes: Partial<VisualizerElement>) =>
+    set((state) => {
+      if (!state.composition) return state;
+      return {
+        composition: {
+          ...state.composition,
+          elements: state.composition.elements.map((el) =>
+            el.id === id && el.type === 'visualizer'
+              ? { ...el, ...changes }
+              : el
+          ),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }),
 
   persistComposition() {
     const { composition } = get();
