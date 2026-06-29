@@ -1,7 +1,9 @@
 // components/editor/Palette.tsx
 'use client';
+import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { PALETTE_ITEMS, PaletteItemDef } from '@/lib/library/sprites';
+import { VisualizerModal } from './visualizer/VisualizerModal';
 
 function PaletteItem({ item }: { item: PaletteItemDef }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -52,6 +54,8 @@ function PaletteItem({ item }: { item: PaletteItemDef }) {
 }
 
 export function Palette() {
+  const [showVisualizerModal, setShowVisualizerModal] = useState(false);
+
   return (
     <div>
       <div
@@ -70,6 +74,25 @@ export function Palette() {
       {PALETTE_ITEMS.map((item) => (
         <PaletteItem key={item.id} item={item} />
       ))}
+      <div style={{ padding: '6px 8px', borderTop: '1px solid var(--muted)', marginTop: 4 }}>
+        <button
+          onClick={() => setShowVisualizerModal(true)}
+          style={{
+            width: '100%',
+            padding: '4px 0',
+            fontFamily: 'monospace',
+            fontSize: 9,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            background: 'var(--surface)',
+            border: '1px solid var(--muted)',
+            color: 'var(--text)',
+            cursor: 'pointer',
+          }}
+        >
+          ⊙ VISUALIZER
+        </button>
+      </div>
       <div
         style={{
           padding: '6px 8px',
@@ -81,6 +104,9 @@ export function Palette() {
       >
         Drag items onto the canvas to place them.
       </div>
+      {showVisualizerModal && (
+        <VisualizerModal onClose={() => setShowVisualizerModal(false)} />
+      )}
     </div>
   );
 }
