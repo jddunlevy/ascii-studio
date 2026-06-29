@@ -9,9 +9,14 @@ interface ElementWrapperProps {
   element: Element;
   isSelected: boolean;
   onSelect: () => void;
+  // Optional audio data for visualizer elements
+  audioSignal?: number;
+  freqData?: Uint8Array;
+  isPlaying?: boolean;
+  sampleRate?: number;
 }
 
-export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapperProps) {
+export function ElementWrapper({ element, isSelected, onSelect, audioSignal, freqData, isPlaying, sampleRate }: ElementWrapperProps) {
   const liveValues = useStudioStore((s) => s.liveValues);
   const updateElement = useStudioStore((s) => s.updateElement);
   const canvasConfig = useStudioStore((s) => s.composition?.canvas ?? { width: 1200, height: 800, grid: 8 });
@@ -156,7 +161,14 @@ export function ElementWrapper({ element, isSelected, onSelect }: ElementWrapper
         overflow: 'hidden',
       }}
     >
-      <ElementRenderer element={element} liveOverride={liveOverride} />
+      <ElementRenderer
+        element={element}
+        liveOverride={liveOverride}
+        audioSignal={audioSignal}
+        freqData={freqData}
+        isPlaying={isPlaying}
+        sampleRate={sampleRate}
+      />
 
       {/* Gradient overlay */}
       {element.gradient && (

@@ -5,6 +5,8 @@ import { useDroppable } from '@dnd-kit/core';
 import useStudioStore from '@/lib/store/studioStore';
 import { ElementWrapper } from './ElementWrapper';
 import { CanvasBackground } from './CanvasBackground';
+import { audioEngine } from '@/lib/audio/audioEngine';
+import type { Signals, VisualizerElement } from '@/lib/types';
 
 export function Canvas() {
   const composition = useStudioStore((s) => s.composition);
@@ -15,6 +17,36 @@ export function Canvas() {
 
   const [gridVisible, setGridVisible] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Audio state ref — updated by RAF, does not trigger re-renders
+  const audioRef = useRef<{
+    signals: Signals;
+    freqData: Uint8Array;
+    isPlaying: boolean;
+    sampleRate: number;
+  }>({
+    signals: { volume: 0, bass: 0, mid: 0, treble: 0 } as Signals,
+    freqData: new Uint8Array(0),
+    isPlaying: false,
+    sampleRate: 44100,
+  });
+
+  const rafRef = useRef<number>(0);
+
+  // RAF loop — reads audio engine on every animation frame
+  useEffect(() => {
+    function tick() {
+      audioRef.current = {
+        signals: audioEngine.getSignals(),
+        freqData: audioEngine.getFrequencyData(),
+        isPlaying: audioEngine.getIsPlaying(),
+        sampleRate: 44100,
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []); // run once on mount
 
   const { setNodeRef, isOver } = useDroppable({ id: 'canvas-droppable' });
 
@@ -114,14 +146,23 @@ export function Canvas() {
       {elements
         .slice()
         .sort((a, b) => a.z - b.z)
-        .map((el) => (
-          <ElementWrapper
-            key={el.id}
-            element={el}
-            isSelected={el.id === selectedElementId}
-            onSelect={() => setSelectedElementId(el.id)}
-          />
-        ))}
+        .map((el) => {
+          const isVisualizer = el.type === 'visualizer';
+          return (
+            <ElementWrapper
+              key={el.id}
+              element={el}
+              isSelected={el.id === selectedElementId}
+              onSelect={() => setSelectedElementId(el.id)}
+              {...(isVisualizer ? {
+                audioSignal: audioRef.current.signals[(el as VisualizerElement).audioSignal] ?? 0,
+                freqData: audioRef.current.freqData,
+                isPlaying: audioRef.current.isPlaying,
+                sampleRate: audioRef.current.sampleRate,
+              } : {})}
+            />
+          );
+        })}
     </div>
   );
 }
