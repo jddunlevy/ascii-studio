@@ -15,14 +15,11 @@ const VISUALIZER_TYPE_OPTIONS: { value: VisualizerType; label: string }[] = [
   { value: 'text', label: 'Text' },
 ];
 
-const RENDER_STYLE_OPTIONS: { value: RenderStyle; label: string }[] = [
-  { value: 'bars', label: 'Bars' },
-  { value: 'block', label: 'Block' },
-  { value: 'star', label: 'Star' },
-  { value: 'dot', label: 'Dot' },
-  { value: 'wave', label: 'Wave' },
-  { value: 'text', label: 'Text' },
-];
+const RENDER_STYLE_OPTIONS: Record<VisualizerType, RenderStyle[]> = {
+  spectrum: ['bars', 'block'],
+  pulse: ['star', 'dot', 'wave', 'block'],
+  text: ['text'],
+};
 
 const SIGNAL_OPTIONS: { value: SignalName; label: string }[] = [
   { value: 'volume', label: 'Volume' },
@@ -119,10 +116,8 @@ export function VisualizerPanel({ element }: VisualizerPanelProps) {
           onChange={(e) => patch({ renderStyle: e.target.value as RenderStyle })}
           style={{ width: '100%' }}
         >
-          {RENDER_STYLE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
+          {RENDER_STYLE_OPTIONS[element.visualType].map((style) => (
+            <option key={style} value={style}>{style}</option>
           ))}
         </select>
       </Row>

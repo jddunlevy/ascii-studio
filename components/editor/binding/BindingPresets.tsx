@@ -45,13 +45,7 @@ interface BindingPresetsProps {
 export function BindingPresets({ elementId }: BindingPresetsProps) {
   const addBinding = useStudioStore((s) => s.addBinding);
 
-  if (!elementId) {
-    return (
-      <div style={{ padding: '6px 8px', color: 'var(--muted)', fontSize: 9 }}>
-        Select an element to add presets.
-      </div>
-    );
-  }
+  if (!elementId) return null;
 
   function handleAdd(preset: typeof PRESETS[0]) {
     addBinding({

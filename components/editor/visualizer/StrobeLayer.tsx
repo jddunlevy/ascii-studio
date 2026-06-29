@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { StrobeConfig } from '@/lib/types';
 import { BeatDetector } from '@/lib/audio/BeatDetector';
 
@@ -13,20 +13,20 @@ export function StrobeLayer({ children, signal, config }: StrobeLayerProps) {
   const beatDetectorRef = useRef(new BeatDetector());
   const [flashOn, setFlashOn] = useState(false);
 
-  // If strobe is disabled, render children as-is
+  useEffect(() => {
+    if (!config.enabled) return;
+    const beatDetected = beatDetectorRef.current.detectBeat(
+      signal,
+      config.threshold,
+      config.speed
+    );
+    if (beatDetected) {
+      setFlashOn((prev) => !prev);
+    }
+  }, [signal, config.enabled, config.threshold, config.speed]);
+
   if (!config.enabled) {
     return <>{children}</>;
-  }
-
-  // Detect beat and toggle flash state
-  const beatDetected = beatDetectorRef.current.detectBeat(
-    signal,
-    config.threshold,
-    config.speed
-  );
-
-  if (beatDetected) {
-    setFlashOn((prev) => !prev);
   }
 
   return (

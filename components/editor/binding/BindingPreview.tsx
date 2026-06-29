@@ -26,7 +26,7 @@ export function BindingPreview({ binding }: BindingPreviewProps) {
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [binding.signal, binding.transform, binding.property]);
+  }, [binding.signal, binding.transform.min, binding.transform.max, binding.transform.invert, binding.property]);
 
   return (
     <div style={{

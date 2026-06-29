@@ -53,7 +53,9 @@ export function VisualizerModal({ onClose }: VisualizerModalProps) {
         visualType === 'spectrum'
           ? {
               barCount: 16,
-              freqRanges: [60, 250, 2000, 6000, 20000],
+              freqRanges: Array.from({ length: 16 + 1 }, (_, i) =>
+                Math.round(20 * Math.pow(20000 / 20, i / 16))
+              ),
               barChar: '█',
               direction: 'vertical',
               spacing: 2,
