@@ -28,6 +28,10 @@ function parseCssColor(s: string): [number, number, number] {
   if (/^#[0-9a-f]{6}$/i.test(t)) {
     return [parseInt(t.slice(1, 3), 16), parseInt(t.slice(3, 5), 16), parseInt(t.slice(5, 7), 16)];
   }
+  const rgb = t.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+  if (rgb) {
+    return [parseInt(rgb[1], 10), parseInt(rgb[2], 10), parseInt(rgb[3], 10)];
+  }
   return [245, 240, 232];
 }
 

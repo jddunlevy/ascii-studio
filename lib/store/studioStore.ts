@@ -9,6 +9,7 @@ import type {
   VisualizerElement,
 } from '@/lib/types';
 import { saveComposition } from '@/lib/composition/storage';
+import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
 
 interface StudioState {
   composition: CompositionSpec | null;
@@ -164,7 +165,7 @@ const useStudioStore = create<StudioState>((set, get) => ({
       return {
         composition: {
           ...s.composition,
-          background: { ...(s.composition.background ?? {}), ...changes } as BackgroundConfig,
+          background: { ...DEFAULT_BACKGROUND, ...(s.composition.background ?? {}), ...changes },
         },
       };
     });
