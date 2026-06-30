@@ -380,32 +380,32 @@ export function BackgroundPanel() {
         </span>
       </Row>
 
-      {/* Orb size */}
-      <SectionHeader>ORB SIZE</SectionHeader>
+      {/* Spotlight size */}
+      <SectionHeader>SPOTLIGHT SIZE</SectionHeader>
       <Row>
         <label
           style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.08em' }}
         >
-          0.1 (SMALL) → 3 (LARGE)
+          0.1 (TIGHT) → 3 (WIDE)
         </label>
         <input
           type="range"
           min={0.1}
           max={3}
           step={0.05}
-          value={cfg.orbSize ?? 1.0}
+          value={cfg.spotlightSize ?? 1.0}
           onChange={(e) =>
-            updateBackground({ orbSize: parseFloat(e.target.value) })
+            updateBackground({ spotlightSize: parseFloat(e.target.value) })
           }
           style={{ width: '100%' }}
         />
         <span style={{ color: 'var(--muted)', fontSize: 9 }}>
-          {(cfg.orbSize ?? 1.0).toFixed(2)}×
+          {(cfg.spotlightSize ?? 1.0).toFixed(2)}×
         </span>
       </Row>
 
-      {/* Orb speed */}
-      <SectionHeader>ORB SPEED</SectionHeader>
+      {/* Spotlight speed */}
+      <SectionHeader>SPOTLIGHT SPEED</SectionHeader>
       <Row>
         <label
           style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.08em' }}
@@ -417,14 +417,14 @@ export function BackgroundPanel() {
           min={0}
           max={4}
           step={0.05}
-          value={cfg.orbSpeed ?? 1.0}
+          value={cfg.spotlightSpeed ?? 1.0}
           onChange={(e) =>
-            updateBackground({ orbSpeed: parseFloat(e.target.value) })
+            updateBackground({ spotlightSpeed: parseFloat(e.target.value) })
           }
           style={{ width: '100%' }}
         />
         <span style={{ color: 'var(--muted)', fontSize: 9 }}>
-          {(cfg.orbSpeed ?? 1.0).toFixed(2)}×
+          {(cfg.spotlightSpeed ?? 1.0).toFixed(2)}×
         </span>
       </Row>
 

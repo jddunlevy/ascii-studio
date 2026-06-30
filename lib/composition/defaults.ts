@@ -31,8 +31,8 @@ export const DEFAULT_BACKGROUND: BackgroundConfig = {
   darkMode: true,
   glowIntensity: 0.5,
   pixelSize: 4,
-  orbSize: 1.0,
-  orbSpeed: 1.0,
+  spotlightSize: 1.0,
+  spotlightSpeed: 1.0,
 };
 
 export function createComposition(name: string): CompositionSpec {

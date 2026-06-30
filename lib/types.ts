@@ -148,8 +148,8 @@ export interface BackgroundConfig {
   darkMode: boolean;           // retained for storage compatibility; always dark now
   glowIntensity?: number;      // 0–1, blob center brightness (pulses with volume)
   pixelSize?: number;          // 1–32, pixelation block size (1 = off)
-  orbSize?: number;            // 0.1–3, multiplier on blob radius
-  orbSpeed?: number;           // 0–4, multiplier on animation speed
+  spotlightSize?: number;      // 0.1–3, multiplier on spotlight radius
+  spotlightSpeed?: number;     // 0–4, multiplier on animation speed
 }
 
 export interface CompositionSpec {

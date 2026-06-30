@@ -6,13 +6,14 @@ import useStudioStore from '@/lib/store/studioStore';
 import { BeatDetector } from '@/lib/audio/BeatDetector';
 import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
 
-// Lissajous orbit params per blob slot (supports up to 5 blobs)
-const BLOB_ORBITS = [
-  { a: 2, b: 3, phase: 0 },
-  { a: 3, b: 4, phase: Math.PI * 0.66 },
-  { a: 1, b: 2, phase: Math.PI * 1.33 },
-  { a: 3, b: 5, phase: Math.PI },
-  { a: 4, b: 5, phase: Math.PI * 1.66 },
+// Per-spotlight sweep params. Each light uses independent x/y angular speeds
+// so paths are smooth elliptical arcs — no Lissajous resonances, no ripple.
+const SPOTLIGHT_ORBITS = [
+  { sx: 1.00, sy: 0.90, phase: 0 },
+  { sx: 0.65, sy: 0.75, phase: Math.PI * 0.50 },
+  { sx: 1.35, sy: 1.20, phase: Math.PI },
+  { sx: 0.80, sy: 1.05, phase: Math.PI * 1.50 },
+  { sx: 1.15, sy: 0.85, phase: Math.PI * 0.25 },
 ];
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -155,21 +156,19 @@ export function CanvasBackground() {
       if (beat) beatPulse = 0.25;
       beatPulse = Math.max(0, beatPulse - 0.008);
 
-      const orbSpeed = Math.max(0, cfg.orbSpeed ?? 1.0);
-      t += (0.006 + signals.mid * r * 0.01) * orbSpeed;
+      const spotlightSpeed = Math.max(0, cfg.spotlightSpeed ?? 1.0);
+      t += (0.006 + signals.mid * r * 0.01) * spotlightSpeed;
       if (t > 1e6) t -= 1e6;
 
-      const phaseShift = signals.treble * r * 0.8;
-
-      // Blob geometry — computed in work-canvas space so pixelSize doesn't
-      // affect the visual proportions of the blobs
+      // Spotlight geometry — computed in work-canvas space so pixelSize doesn't
+      // affect the visual proportions of the lights
       const cx_w = ww / 2;
       const cy_w = wh / 2;
       const spreadX_w = ww * (0.2 + signals.volume * r * 0.08);
       const spreadY_w = wh * (0.2 + signals.volume * r * 0.08);
-      const orbSize = Math.max(0.1, cfg.orbSize ?? 1.0);
-      const blobRadius_w =
-        Math.min(ww, wh) * 0.52 * orbSize +
+      const spotlightSize = Math.max(0.1, cfg.spotlightSize ?? 1.0);
+      const spotlightRadius_w =
+        Math.min(ww, wh) * 0.52 * spotlightSize +
         beatPulse * Math.min(ww, wh) * 0.18 +
         signals.volume * r * Math.min(ww, wh) * 0.15;
 
@@ -185,16 +184,15 @@ export function CanvasBackground() {
       workCtx.fillStyle = `rgba(0,0,0,${fadeAlpha})`;
       workCtx.fillRect(0, 0, ww, wh);
 
-      // ---- Draw blobs to work canvas (screen = additive light) ----
+      // ---- Draw spotlights to work canvas (screen = additive light) ----
       workCtx.globalCompositeOperation = 'screen';
 
       for (let i = 0; i < colors.length; i++) {
-        const orbit = BLOB_ORBITS[i % BLOB_ORBITS.length];
-        const blobT = t + orbit.phase;
-        const bx_w = cx_w + spreadX_w * Math.sin(orbit.a * blobT + phaseShift);
-        const by_w = cy_w + spreadY_w * Math.sin(orbit.b * blobT);
+        const orbit = SPOTLIGHT_ORBITS[i % SPOTLIGHT_ORBITS.length];
+        const bx_w = cx_w + spreadX_w * Math.cos(t * orbit.sx + orbit.phase);
+        const by_w = cy_w + spreadY_w * Math.sin(t * orbit.sy + orbit.phase);
 
-        const grad = workCtx.createRadialGradient(bx_w, by_w, 0, bx_w, by_w, blobRadius_w);
+        const grad = workCtx.createRadialGradient(bx_w, by_w, 0, bx_w, by_w, spotlightRadius_w);
         grad.addColorStop(0,    hexToRgba(colors[i].hex, glow * 0.88));
         grad.addColorStop(0.45, hexToRgba(colors[i].hex, glow * 0.35));
         grad.addColorStop(1,    hexToRgba(colors[i].hex, 0));
