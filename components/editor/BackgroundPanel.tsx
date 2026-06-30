@@ -158,33 +158,6 @@ export function BackgroundPanel() {
         </label>
       </div>
 
-      {/* Theme */}
-      <SectionHeader>THEME</SectionHeader>
-      <div style={{ padding: '4px 8px', display: 'flex', gap: 4 }}>
-        {(['light', 'dark'] as const).map((mode) => {
-          const isActive = (cfg.darkMode ?? false) === (mode === 'dark');
-          return (
-            <button
-              key={mode}
-              onClick={() => updateBackground({ darkMode: mode === 'dark' })}
-              style={{
-                flex: 1,
-                padding: '3px 0',
-                background: isActive ? 'var(--accent)' : 'var(--surface)',
-                color: isActive ? 'var(--bg)' : 'var(--muted)',
-                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--muted)'}`,
-                cursor: 'pointer',
-                fontSize: 9,
-                letterSpacing: '0.08em',
-                fontFamily: 'inherit',
-              }}
-            >
-              {mode === 'light' ? '\u25fb LIGHT' : '\u25fc DARK'}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Palette */}
       <SectionHeader>PALETTE</SectionHeader>
       <Row>

@@ -15,24 +15,18 @@ const BLOB_ORBITS = [
   { a: 4, b: 5, phase: Math.PI * 1.66 },
 ];
 
-// Near-black for dark mode background
+// Near-black base
 const DARK_BG: [number, number, number] = [10, 8, 12];
+
+// Palette-tint constants: keep background dark but hued rather than grey.
+// TINT_SCALE darkens the avg palette color toward the DARK_BG range.
+// TINT_BLEND controls how strongly the palette hue shifts the fade target.
+const TINT_SCALE = 0.20;
+const TINT_BLEND = 0.65;
 
 function hexToRgba(hex: string, alpha: number): string {
   if (!/^#[0-9a-f]{6}$/i.test(hex)) return `rgba(200,200,200,${alpha})`;
   return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${alpha})`;
-}
-
-function parseCssColor(s: string): [number, number, number] {
-  const t = s.trim();
-  if (/^#[0-9a-f]{6}$/i.test(t)) {
-    return [parseInt(t.slice(1, 3), 16), parseInt(t.slice(3, 5), 16), parseInt(t.slice(5, 7), 16)];
-  }
-  const rgb = t.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
-  if (rgb) {
-    return [parseInt(rgb[1], 10), parseInt(rgb[2], 10), parseInt(rgb[3], 10)];
-  }
-  return [245, 240, 232];
 }
 
 export function CanvasBackground() {
@@ -50,11 +44,6 @@ export function CanvasBackground() {
     // Animation state
     let t = 0;
     let beatPulse = 0;
-
-    // Light-mode bg color from CSS var (read once at mount)
-    const lightBg = parseCssColor(
-      getComputedStyle(document.documentElement).getPropertyValue('--bg')
-    );
 
     // Grain offscreen canvas — created/recreated on resize
     let grainCanvas: HTMLCanvasElement | null = null;
@@ -83,8 +72,7 @@ export function CanvasBackground() {
       canvas!.width = w;
       canvas!.height = h;
       setupGrain(w, h);
-      const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
-      const [r, g, b] = cfg.darkMode ? DARK_BG : lightBg;
+      const [r, g, b] = DARK_BG;
       ctx!.fillStyle = `rgb(${r},${g},${b})`;
       ctx!.fillRect(0, 0, w, h);
     }
@@ -93,17 +81,16 @@ export function CanvasBackground() {
     ro.observe(canvas);
     resize();
 
-    function drawGrain(isDark: boolean) {
+    function drawGrain() {
       if (!grainCanvas || !grainCtx || !grainData) return;
       // Refresh grain data every 3 frames; composite every frame
       grainFrame = (grainFrame + 1) % 3;
       if (grainFrame === 0) {
         const data = grainData.data;
-        const v = isDark ? 255 : 0;
         for (let i = 0; i < data.length; i += 4) {
-          data[i] = v;
-          data[i + 1] = v;
-          data[i + 2] = v;
+          data[i] = 255;
+          data[i + 1] = 255;
+          data[i + 2] = 255;
           data[i + 3] = Math.random() * 18 | 0; // 0–18 alpha (~7% max)
         }
         grainCtx.putImageData(grainData, 0, 0);
@@ -116,11 +103,10 @@ export function CanvasBackground() {
 
     function tick() {
       const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
-      const isDark = cfg.darkMode ?? false;
 
       if (!cfg.enabled) {
         ctx!.globalCompositeOperation = 'source-over';
-        const [r, g, b] = isDark ? DARK_BG : lightBg;
+        const [r, g, b] = DARK_BG;
         ctx!.fillStyle = `rgb(${r},${g},${b})`;
         ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
         raf = requestAnimationFrame(tick);
@@ -161,16 +147,33 @@ export function CanvasBackground() {
         beatPulse * Math.min(w, h) * 0.18 +
         signals.volume * r * Math.min(w, h) * 0.15;
 
-      // ---- Fade toward background ----
-      const [bgR, bgG, bgB] = isDark ? DARK_BG : lightBg;
-      const fadeAlpha = 0.028 + (beat ? 0.04 : 0);
+      const colors = cfg.colors.length > 0 ? cfg.colors : DEFAULT_BACKGROUND.colors;
+
+      // ---- Fade toward palette-tinted dark ----
+      // Compute the average palette color, scale it very dark, then blend
+      // toward that instead of neutral black. Areas where blobs have been
+      // converge to a dim hued version of the palette rather than grey.
+      let avgR = 0, avgG = 0, avgB = 0;
+      for (const c of colors) {
+        avgR += parseInt(c.hex.slice(1, 3), 16);
+        avgG += parseInt(c.hex.slice(3, 5), 16);
+        avgB += parseInt(c.hex.slice(5, 7), 16);
+      }
+      avgR /= colors.length;
+      avgG /= colors.length;
+      avgB /= colors.length;
+
+      const tR = Math.round(DARK_BG[0] + (avgR * TINT_SCALE - DARK_BG[0]) * TINT_BLEND);
+      const tG = Math.round(DARK_BG[1] + (avgG * TINT_SCALE - DARK_BG[1]) * TINT_BLEND);
+      const tB = Math.round(DARK_BG[2] + (avgB * TINT_SCALE - DARK_BG[2]) * TINT_BLEND);
+
+      const fadeAlpha = 0.016 + (beat ? 0.03 : 0);
       ctx!.globalCompositeOperation = 'source-over';
-      ctx!.fillStyle = `rgba(${bgR},${bgG},${bgB},${fadeAlpha})`;
+      ctx!.fillStyle = `rgba(${tR},${tG},${tB},${fadeAlpha})`;
       ctx!.fillRect(0, 0, w, h);
 
-      // ---- Draw blobs ----
-      ctx!.globalCompositeOperation = isDark ? 'screen' : 'source-over';
-      const colors = cfg.colors.length > 0 ? cfg.colors : DEFAULT_BACKGROUND.colors;
+      // ---- Draw blobs (screen = additive light, spotlights stay bright) ----
+      ctx!.globalCompositeOperation = 'screen';
 
       for (let i = 0; i < colors.length; i++) {
         const orbit = BLOB_ORBITS[i % BLOB_ORBITS.length];
@@ -179,15 +182,15 @@ export function CanvasBackground() {
         const by = cy + spreadY * Math.sin(orbit.b * blobT);
 
         const grad = ctx!.createRadialGradient(bx, by, 0, bx, by, blobRadius);
-        grad.addColorStop(0,    hexToRgba(colors[i].hex, isDark ? 0.88 : 0.60));
-        grad.addColorStop(0.45, hexToRgba(colors[i].hex, isDark ? 0.35 : 0.22));
+        grad.addColorStop(0,    hexToRgba(colors[i].hex, 0.88));
+        grad.addColorStop(0.45, hexToRgba(colors[i].hex, 0.35));
         grad.addColorStop(1,    hexToRgba(colors[i].hex, 0));
         ctx!.fillStyle = grad;
         ctx!.fillRect(0, 0, w, h);
       }
 
       // ---- Grain overlay ----
-      drawGrain(isDark);
+      drawGrain();
 
       raf = requestAnimationFrame(tick);
     }
