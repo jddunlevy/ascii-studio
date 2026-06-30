@@ -64,6 +64,7 @@ export function CanvasBackground() {
       grainCanvas.height = h;
       grainCtx = grainCanvas.getContext('2d');
       if (grainCtx) grainData = grainCtx.createImageData(w, h);
+      grainFrame = 2;
     }
 
     let lastW = 0;
