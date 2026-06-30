@@ -136,15 +136,15 @@ export interface CanvasConfig {
   grid: number;
 }
 
+export interface LissajousColor {
+  hex: string; // '#rrggbb'
+}
+
 export interface BackgroundConfig {
   enabled: boolean;
-  baseHue: number;        // starting hue 0–360
-  hueCount: number;       // number of gradient stops 2–6
-  angle: number;          // gradient direction in degrees
-  speed: number;          // hue drift speed multiplier 0–5
-  minOpacity: number;     // opacity when silent 0–1
-  maxOpacity: number;     // opacity at peak volume 0–1
-  bassMultiplier: number; // how much bass accelerates the drift 0–5
+  colors: LissajousColor[];  // 2–5 colors, gradient along Lissajous curve
+  glow: boolean;             // true = 'lighter' composite op (glow effect)
+  reactivity: number;        // 0–1, scales audio influence on figure parameters
 }
 
 export interface CompositionSpec {
