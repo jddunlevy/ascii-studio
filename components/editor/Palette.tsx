@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { PALETTE_ITEMS, PaletteItemDef } from '@/lib/library/sprites';
 import { VisualizerModal } from './visualizer/VisualizerModal';
+import { AuraModal } from './aura/AuraModal';
 
 function PaletteItem({ item }: { item: PaletteItemDef }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -55,6 +56,7 @@ function PaletteItem({ item }: { item: PaletteItemDef }) {
 
 export function Palette() {
   const [showVisualizerModal, setShowVisualizerModal] = useState(false);
+  const [showAuraModal, setShowAuraModal] = useState(false);
 
   return (
     <div>
@@ -88,9 +90,27 @@ export function Palette() {
             border: '1px solid var(--muted)',
             color: 'var(--text)',
             cursor: 'pointer',
+            marginBottom: 4,
           }}
         >
           ⊙ VISUALIZER
+        </button>
+        <button
+          onClick={() => setShowAuraModal(true)}
+          style={{
+            width: '100%',
+            padding: '4px 0',
+            fontFamily: 'monospace',
+            fontSize: 9,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            background: 'var(--surface)',
+            border: '1px solid var(--muted)',
+            color: 'var(--text)',
+            cursor: 'pointer',
+          }}
+        >
+          ◉ AURA
         </button>
       </div>
       <div
@@ -106,6 +126,9 @@ export function Palette() {
       </div>
       {showVisualizerModal && (
         <VisualizerModal onClose={() => setShowVisualizerModal(false)} />
+      )}
+      {showAuraModal && (
+        <AuraModal onClose={() => setShowAuraModal(false)} />
       )}
     </div>
   );

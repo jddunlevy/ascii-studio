@@ -1,8 +1,9 @@
 // components/editor/Inspector.tsx
 'use client';
 import useStudioStore from '@/lib/store/studioStore';
-import type { Element, FontName, VisualizerElement } from '@/lib/types';
+import type { Element, FontName, VisualizerElement, AuraElement } from '@/lib/types';
 import { VisualizerPanel } from './visualizer/VisualizerPanel';
+import { AuraPanel } from './aura/AuraPanel';
 import { ElementSensitivity } from './calibration/ElementSensitivity';
 
 const FONT_OPTIONS: { value: FontName; label: string }[] = [
@@ -312,6 +313,11 @@ export function Inspector(_props: InspectorProps) {
       {/* Visualizer-specific panel */}
       {element.type === 'visualizer' && (
         <VisualizerPanel element={element as VisualizerElement} />
+      )}
+
+      {/* Aura-specific panel */}
+      {element.type === 'aura' && (
+        <AuraPanel element={element as AuraElement} />
       )}
 
       {/* Element Sensitivity */}

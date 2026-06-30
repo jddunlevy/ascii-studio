@@ -9,6 +9,7 @@ import type {
 } from '@/lib/types';
 import { SPRITE_CONTENT } from '@/lib/library/sprites';
 import { VisualizerRenderer } from './visualizer/VisualizerRenderer';
+import { AuraRenderer } from './aura/AuraRenderer';
 
 const FONT_MAP: Record<string, string> = {
   'jetbrains-mono': "'JetBrains Mono', monospace",
@@ -163,5 +164,7 @@ export function ElementRenderer({
           element={element}
         />
       );
+    case 'aura':
+      return <AuraRenderer element={element} liveOverride={liveOverride} />;
   }
 }

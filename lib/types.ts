@@ -118,6 +118,12 @@ export interface LiveElementOverride {
   rotation: number;
   opacity: number;
   content: string;
+  blur: number;
+  colorStop0Hue: number;
+  colorStop1Hue: number;
+  colorStop2Hue: number;
+  colorStop3Hue: number;
+  colorStop4Hue: number;
 }
 
 export type LiveValues = Record<string, Partial<LiveElementOverride>>;
