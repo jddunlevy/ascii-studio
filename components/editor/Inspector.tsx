@@ -3,6 +3,7 @@
 import useStudioStore from '@/lib/store/studioStore';
 import type { Element, FontName, VisualizerElement } from '@/lib/types';
 import { VisualizerPanel } from './visualizer/VisualizerPanel';
+import { ElementSensitivity } from './calibration/ElementSensitivity';
 
 const FONT_OPTIONS: { value: FontName; label: string }[] = [
   { value: 'jetbrains-mono', label: 'JetBrains Mono' },
@@ -312,6 +313,9 @@ export function Inspector(_props: InspectorProps) {
       {element.type === 'visualizer' && (
         <VisualizerPanel element={element as VisualizerElement} />
       )}
+
+      {/* Element Sensitivity */}
+      <ElementSensitivity elementId={element.id} sensitivity={element.sensitivity} />
 
       {/* Lock + gradient */}
       <SectionHeader>OPTIONS</SectionHeader>
