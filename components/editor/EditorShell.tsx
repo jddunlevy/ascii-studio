@@ -16,6 +16,7 @@ import { BindingPanel } from './BindingPanel';
 import { Inspector } from './Inspector';
 import { AudioPlayer } from './AudioPlayer';
 import { BackgroundPanel } from './BackgroundPanel';
+import { GlobalAudioPanel } from './calibration/GlobalAudioPanel';
 import { CompositionModal } from '@/components/compositions/CompositionModal';
 
 export function EditorShell() {
@@ -217,6 +218,7 @@ export function EditorShell() {
           >
             <Inspector />
             <BackgroundPanel />
+            <GlobalAudioPanel />
           </div>
         </div>
 
