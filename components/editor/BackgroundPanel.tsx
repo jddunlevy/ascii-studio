@@ -6,18 +6,32 @@ import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
 import type { LissajousColor } from '@/lib/types';
 
 const CURATED_SWATCHES = [
-  '#c8d4b8', // sage green
-  '#b8c8d4', // soft blue
-  '#d4b8c8', // dusty pink
-  '#d4c8b8', // warm sand
-  '#b8d4c8', // seafoam
-  '#c8b8d4', // lavender mist
-  '#e8dcc8', // cream
-  '#d4d4b8', // pale chartreuse
-  '#8c9078', // muted olive
-  '#907888', // mauve
-  '#788890', // slate
-  '#f0e8d0', // warm white
+  // reds
+  '#ff2020', '#e84040', '#c85858', '#a06060',
+  // oranges
+  '#ff6820', '#e87840', '#d49060', '#c8a880',
+  // yellows
+  '#ffe020', '#e8c840', '#d4b060', '#c8a040',
+  // yellow-greens
+  '#c8d420', '#a8b840', '#889060', '#a0b460',
+  // greens
+  '#40d840', '#58c070', '#70a878', '#78c870',
+  // teals
+  '#20d8a0', '#40c0a0', '#20c8c8', '#58b098',
+  // blues
+  '#2080ff', '#4090e8', '#60a0d4', '#4060c8',
+  // indigos / purples
+  '#6040ff', '#7858e8', '#8860c8', '#9070d4',
+  // violets / pinks
+  '#c020e0', '#b040c8', '#a058b0', '#c060d4',
+  // pinks / magentas
+  '#ff20a0', '#e84090', '#d06080', '#ff60c0',
+  // warm muted (original)
+  '#c8d4b8', '#b8c8d4', '#d4b8c8', '#d4c8b8',
+  '#b8d4c8', '#c8b8d4', '#e8dcc8', '#d4d4b8',
+  '#8c9078', '#907888', '#788890', '#f0e8d0',
+  // neutrals
+  '#ffffff', '#d0d0d0', '#a0a0a0', '#707070', '#404040', '#101010',
 ];
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
@@ -292,7 +306,7 @@ export function BackgroundPanel() {
                 />
               ))}
             </div>
-            {/* Hex input */}
+            {/* Hex input + native color picker */}
             <div
               style={{
                 marginTop: 6,
@@ -327,6 +341,44 @@ export function BackgroundPanel() {
                   outline: 'none',
                 }}
               />
+              <label
+                title="Pick exact shade"
+                style={{
+                  width: 22,
+                  height: 22,
+                  border: '1px solid var(--muted)',
+                  background: 'var(--surface)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 10,
+                  color: 'var(--muted)',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  position: 'relative' as const,
+                }}
+              >
+                ⊙
+                <input
+                  type="color"
+                  value={cfg.colors[editingIdx]?.hex ?? '#e8dcc8'}
+                  onChange={(e) => {
+                    const hex = e.target.value;
+                    setColor(editingIdx, hex);
+                    setHexInput(hex);
+                  }}
+                  style={{
+                    position: 'absolute' as const,
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer',
+                    padding: 0,
+                    border: 'none',
+                  }}
+                />
+              </label>
             </div>
           </div>
         )}
