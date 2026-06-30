@@ -142,10 +142,12 @@ export interface LissajousColor {
 
 export interface BackgroundConfig {
   enabled: boolean;
-  colors: LissajousColor[];  // 2–5 colors, gradient along Lissajous curve
-  glow: boolean;             // retained for storage compatibility; not used by renderer
-  reactivity: number;        // 0–1, scales audio influence on figure parameters
-  darkMode: boolean;         // true = dark background mode
+  colors: LissajousColor[];    // 2–5 colors, gradient along Lissajous curve
+  glow: boolean;               // retained for storage compatibility; not used by renderer
+  reactivity: number;          // 0–1, scales audio influence on figure parameters
+  darkMode: boolean;           // retained for storage compatibility; always dark now
+  glowIntensity?: number;      // 0–1, blob center brightness (pulses with volume)
+  pixelSize?: number;          // 1–32, pixelation block size (1 = off)
 }
 
 export interface CompositionSpec {

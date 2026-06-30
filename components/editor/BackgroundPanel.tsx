@@ -379,6 +379,54 @@ export function BackgroundPanel() {
           {cfg.reactivity.toFixed(2)}
         </span>
       </Row>
+
+      {/* Glow */}
+      <SectionHeader>GLOW</SectionHeader>
+      <Row>
+        <label
+          style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.08em' }}
+        >
+          BASE INTENSITY · PULSES WITH VOLUME
+        </label>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={cfg.glowIntensity ?? 0.5}
+          onChange={(e) =>
+            updateBackground({ glowIntensity: parseFloat(e.target.value) })
+          }
+          style={{ width: '100%' }}
+        />
+        <span style={{ color: 'var(--muted)', fontSize: 9 }}>
+          {(cfg.glowIntensity ?? 0.5).toFixed(2)}
+        </span>
+      </Row>
+
+      {/* Pixelation */}
+      <SectionHeader>PIXELATION</SectionHeader>
+      <Row>
+        <label
+          style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.08em' }}
+        >
+          1 (OFF) → 32 (CHUNKY)
+        </label>
+        <input
+          type="range"
+          min={1}
+          max={32}
+          step={1}
+          value={cfg.pixelSize ?? 4}
+          onChange={(e) =>
+            updateBackground({ pixelSize: parseInt(e.target.value, 10) })
+          }
+          style={{ width: '100%' }}
+        />
+        <span style={{ color: 'var(--muted)', fontSize: 9 }}>
+          {cfg.pixelSize ?? 4}px
+        </span>
+      </Row>
     </div>
   );
 }

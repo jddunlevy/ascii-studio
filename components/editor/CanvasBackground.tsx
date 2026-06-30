@@ -15,15 +15,6 @@ const BLOB_ORBITS = [
   { a: 4, b: 5, phase: Math.PI * 1.66 },
 ];
 
-// Near-black base
-const DARK_BG: [number, number, number] = [10, 8, 12];
-
-// Palette-tint constants: keep background dark but hued rather than grey.
-// TINT_SCALE darkens the avg palette color toward the DARK_BG range.
-// TINT_BLEND controls how strongly the palette hue shifts the fade target.
-const TINT_SCALE = 0.20;
-const TINT_BLEND = 0.65;
-
 function hexToRgba(hex: string, alpha: number): string {
   if (!/^#[0-9a-f]{6}$/i.test(hex)) return `rgba(200,200,200,${alpha})`;
   return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${alpha})`;
@@ -41,15 +32,37 @@ export function CanvasBackground() {
     let raf: number;
     const beatDetector = new BeatDetector();
 
-    // Animation state
     let t = 0;
     let beatPulse = 0;
 
-    // Grain offscreen canvas — created/recreated on resize
+    // Work canvas: blobs are rendered here at reduced resolution.
+    // Upscaled to the main canvas each frame with imageSmoothingEnabled=false
+    // to produce the chunky pixel effect. Fade/persistence lives here too.
+    let workCanvas: HTMLCanvasElement | null = null;
+    let workCtx: CanvasRenderingContext2D | null = null;
+
+    // Grain offscreen canvas — full resolution, composited on top after upscale
     let grainCanvas: HTMLCanvasElement | null = null;
     let grainCtx: CanvasRenderingContext2D | null = null;
     let grainData: ImageData | null = null;
     let grainFrame = 0;
+
+    let lastW = 0;
+    let lastH = 0;
+    let lastPixelSize = 0;
+
+    function setupWork(w: number, h: number, pixelSize: number) {
+      const ww = Math.max(1, Math.ceil(w / pixelSize));
+      const wh = Math.max(1, Math.ceil(h / pixelSize));
+      if (!workCanvas) workCanvas = document.createElement('canvas');
+      workCanvas.width = ww;
+      workCanvas.height = wh;
+      workCtx = workCanvas.getContext('2d');
+      if (workCtx) {
+        workCtx.fillStyle = 'rgb(0,0,0)';
+        workCtx.fillRect(0, 0, ww, wh);
+      }
+    }
 
     function setupGrain(w: number, h: number) {
       grainCanvas = document.createElement('canvas');
@@ -60,9 +73,6 @@ export function CanvasBackground() {
       grainFrame = 2;
     }
 
-    let lastW = 0;
-    let lastH = 0;
-
     function resize() {
       const w = canvas!.offsetWidth;
       const h = canvas!.offsetHeight;
@@ -71,9 +81,12 @@ export function CanvasBackground() {
       lastH = h;
       canvas!.width = w;
       canvas!.height = h;
+      const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
+      const pixelSize = Math.max(1, Math.round(cfg.pixelSize ?? 4));
+      setupWork(w, h, pixelSize);
+      lastPixelSize = pixelSize;
       setupGrain(w, h);
-      const [r, g, b] = DARK_BG;
-      ctx!.fillStyle = `rgb(${r},${g},${b})`;
+      ctx!.fillStyle = 'rgb(0,0,0)';
       ctx!.fillRect(0, 0, w, h);
     }
 
@@ -83,7 +96,7 @@ export function CanvasBackground() {
 
     function drawGrain() {
       if (!grainCanvas || !grainCtx || !grainData) return;
-      // Refresh grain data every 3 frames; composite every frame
+      // Refresh noise pattern every 3 frames, composite every frame
       grainFrame = (grainFrame + 1) % 3;
       if (grainFrame === 0) {
         const data = grainData.data;
@@ -103,11 +116,11 @@ export function CanvasBackground() {
 
     function tick() {
       const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
+      const pixelSize = Math.max(1, Math.round(cfg.pixelSize ?? 4));
 
       if (!cfg.enabled) {
         ctx!.globalCompositeOperation = 'source-over';
-        const [r, g, b] = DARK_BG;
-        ctx!.fillStyle = `rgb(${r},${g},${b})`;
+        ctx!.fillStyle = 'rgb(0,0,0)';
         ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
         raf = requestAnimationFrame(tick);
         return;
@@ -120,8 +133,20 @@ export function CanvasBackground() {
         return;
       }
 
-      const cx = w / 2;
-      const cy = h / 2;
+      // Recreate work canvas when pixel size changes
+      if (pixelSize !== lastPixelSize) {
+        setupWork(w, h, pixelSize);
+        lastPixelSize = pixelSize;
+      }
+
+      if (!workCtx || !workCanvas) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+
+      const ww = workCanvas.width;
+      const wh = workCanvas.height;
+
       const signals = audioEngine.getSignals();
       const r = cfg.reactivity;
 
@@ -130,66 +155,58 @@ export function CanvasBackground() {
       if (beat) beatPulse = 0.25;
       beatPulse = Math.max(0, beatPulse - 0.008);
 
-      // Advance Lissajous time (mid drives speed)
       t += 0.006 + signals.mid * r * 0.01;
       if (t > 1e6) t -= 1e6;
 
-      // Phase shift from treble (twists orbit path)
       const phaseShift = signals.treble * r * 0.8;
 
-      // Orbit spread from canvas center (volume widens orbits)
-      const spreadX = w * (0.2 + signals.volume * r * 0.08);
-      const spreadY = h * (0.2 + signals.volume * r * 0.08);
+      // Blob geometry — computed in work-canvas space so pixelSize doesn't
+      // affect the visual proportions of the blobs
+      const cx_w = ww / 2;
+      const cy_w = wh / 2;
+      const spreadX_w = ww * (0.2 + signals.volume * r * 0.08);
+      const spreadY_w = wh * (0.2 + signals.volume * r * 0.08);
+      const blobRadius_w =
+        Math.min(ww, wh) * 0.52 +
+        beatPulse * Math.min(ww, wh) * 0.18 +
+        signals.volume * r * Math.min(ww, wh) * 0.15;
 
-      // Blob radius (base covers ~half canvas; volume + beat expand it)
-      const blobRadius =
-        Math.min(w, h) * 0.52 +
-        beatPulse * Math.min(w, h) * 0.18 +
-        signals.volume * r * Math.min(w, h) * 0.15;
+      // Glow intensity with volume pulse — drives blob alpha stops
+      const glowBase = Math.max(0, Math.min(1, cfg.glowIntensity ?? 0.5));
+      const glow = Math.min(1, glowBase + signals.volume * r * 0.5);
 
       const colors = cfg.colors.length > 0 ? cfg.colors : DEFAULT_BACKGROUND.colors;
 
-      // ---- Fade toward palette-tinted dark ----
-      // Compute the average palette color, scale it very dark, then blend
-      // toward that instead of neutral black. Areas where blobs have been
-      // converge to a dim hued version of the palette rather than grey.
-      let avgR = 0, avgG = 0, avgB = 0;
-      for (const c of colors) {
-        avgR += parseInt(c.hex.slice(1, 3), 16);
-        avgG += parseInt(c.hex.slice(3, 5), 16);
-        avgB += parseInt(c.hex.slice(5, 7), 16);
-      }
-      avgR /= colors.length;
-      avgG /= colors.length;
-      avgB /= colors.length;
+      // ---- Fade work canvas toward pure black ----
+      const fadeAlpha = 0.028 + (beat ? 0.04 : 0);
+      workCtx.globalCompositeOperation = 'source-over';
+      workCtx.fillStyle = `rgba(0,0,0,${fadeAlpha})`;
+      workCtx.fillRect(0, 0, ww, wh);
 
-      const tR = Math.round(DARK_BG[0] + (avgR * TINT_SCALE - DARK_BG[0]) * TINT_BLEND);
-      const tG = Math.round(DARK_BG[1] + (avgG * TINT_SCALE - DARK_BG[1]) * TINT_BLEND);
-      const tB = Math.round(DARK_BG[2] + (avgB * TINT_SCALE - DARK_BG[2]) * TINT_BLEND);
-
-      const fadeAlpha = 0.016 + (beat ? 0.03 : 0);
-      ctx!.globalCompositeOperation = 'source-over';
-      ctx!.fillStyle = `rgba(${tR},${tG},${tB},${fadeAlpha})`;
-      ctx!.fillRect(0, 0, w, h);
-
-      // ---- Draw blobs (screen = additive light, spotlights stay bright) ----
-      ctx!.globalCompositeOperation = 'screen';
+      // ---- Draw blobs to work canvas (screen = additive light) ----
+      workCtx.globalCompositeOperation = 'screen';
 
       for (let i = 0; i < colors.length; i++) {
         const orbit = BLOB_ORBITS[i % BLOB_ORBITS.length];
         const blobT = t + orbit.phase;
-        const bx = cx + spreadX * Math.sin(orbit.a * blobT + phaseShift);
-        const by = cy + spreadY * Math.sin(orbit.b * blobT);
+        const bx_w = cx_w + spreadX_w * Math.sin(orbit.a * blobT + phaseShift);
+        const by_w = cy_w + spreadY_w * Math.sin(orbit.b * blobT);
 
-        const grad = ctx!.createRadialGradient(bx, by, 0, bx, by, blobRadius);
-        grad.addColorStop(0,    hexToRgba(colors[i].hex, 0.88));
-        grad.addColorStop(0.45, hexToRgba(colors[i].hex, 0.35));
+        const grad = workCtx.createRadialGradient(bx_w, by_w, 0, bx_w, by_w, blobRadius_w);
+        grad.addColorStop(0,    hexToRgba(colors[i].hex, glow * 0.88));
+        grad.addColorStop(0.45, hexToRgba(colors[i].hex, glow * 0.35));
         grad.addColorStop(1,    hexToRgba(colors[i].hex, 0));
-        ctx!.fillStyle = grad;
-        ctx!.fillRect(0, 0, w, h);
+        workCtx.fillStyle = grad;
+        workCtx.fillRect(0, 0, ww, wh);
       }
 
-      // ---- Grain overlay ----
+      // ---- Upscale work canvas → main canvas (no smoothing = chunky pixels) ----
+      ctx!.globalCompositeOperation = 'source-over';
+      ctx!.globalAlpha = 1;
+      ctx!.imageSmoothingEnabled = false;
+      ctx!.drawImage(workCanvas, 0, 0, ww, wh, 0, 0, w, h);
+
+      // ---- Grain overlay at full resolution ----
       drawGrain();
 
       raf = requestAnimationFrame(tick);
