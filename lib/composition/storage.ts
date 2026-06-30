@@ -5,8 +5,14 @@ const STORAGE_KEY = 'ascii-studio:compositions';
 
 function migrateBackground(comp: CompositionSpec): CompositionSpec {
   const bg = comp.background as Record<string, unknown> | undefined;
-  if (bg && 'baseHue' in bg) {
+  if (!bg) return comp;
+  // Old hue-based config — replace entirely
+  if ('baseHue' in bg) {
     return { ...comp, background: { ...DEFAULT_BACKGROUND } };
+  }
+  // V1 Lissajous config missing darkMode — add default
+  if (!('darkMode' in bg)) {
+    return { ...comp, background: { ...bg, darkMode: false } as any };
   }
   return comp;
 }

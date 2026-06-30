@@ -145,6 +145,7 @@ export interface BackgroundConfig {
   colors: LissajousColor[];  // 2–5 colors, gradient along Lissajous curve
   glow: boolean;             // true = 'lighter' composite op (glow effect)
   reactivity: number;        // 0–1, scales audio influence on figure parameters
+  darkMode: boolean;         // true = dark background mode
 }
 
 export interface CompositionSpec {

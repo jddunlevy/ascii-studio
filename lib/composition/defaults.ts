@@ -28,6 +28,7 @@ export const DEFAULT_BACKGROUND: BackgroundConfig = {
   ],
   glow: false,
   reactivity: 0.6,
+  darkMode: false,
 };
 
 export function createComposition(name: string): CompositionSpec {
