@@ -2,7 +2,7 @@
 'use client';
 import { useState } from 'react';
 import useStudioStore from '@/lib/store/studioStore';
-import type { Binding, SignalName, VisualProperty } from '@/lib/types';
+import type { Binding, SignalName, VisualProperty, BindingMode, ThresholdAction, ContinuousTransform, ThresholdTransform } from '@/lib/types';
 import { BindingPreview } from './binding/BindingPreview';
 import { BindingCalibration } from './calibration/BindingCalibration';
 
@@ -23,15 +23,52 @@ export function BindingRow({ binding }: BindingRowProps) {
 
   const elements = composition?.elements ?? [];
   const isContent = binding.property === 'content';
-  const transform = binding.transform ?? { min: 0, max: 1, invert: false };
+
+  // Migration logic: default to continuous mode if no mode specified
+  const mode: BindingMode = binding.mode ?? 'continuous';
+
+  // Migrate old transform to continuousTransform if needed
+  const continuousTransform: ContinuousTransform = binding.continuousTransform ??
+    binding.transform ??
+    { min: 0, max: 1, invert: false };
+
+  const thresholdTransform: ThresholdTransform = binding.thresholdTransform ?? {
+    threshold: 0.5,
+    aboveValue: 1,
+    belowValue: 0,
+    action: 'switch',
+  };
 
   function patch(changes: Partial<Binding>) {
     updateBinding(binding.id, changes);
   }
 
-  function patchTransform(changes: Partial<Binding['transform']>) {
-    const currentTransform = binding.transform ?? { min: 0, max: 1, invert: false };
-    updateBinding(binding.id, { transform: { ...currentTransform, ...changes } });
+  function patchContinuousTransform(changes: Partial<ContinuousTransform>) {
+    updateBinding(binding.id, {
+      continuousTransform: { ...continuousTransform, ...changes },
+    });
+  }
+
+  function patchThresholdTransform(changes: Partial<ThresholdTransform>) {
+    updateBinding(binding.id, {
+      thresholdTransform: { ...thresholdTransform, ...changes },
+    });
+  }
+
+  function handleModeChange(newMode: BindingMode) {
+    // When switching to threshold mode for content properties, set string defaults
+    if (newMode === 'threshold' && isContent && typeof thresholdTransform.aboveValue === 'number') {
+      updateBinding(binding.id, {
+        mode: newMode,
+        thresholdTransform: {
+          ...thresholdTransform,
+          aboveValue: '█',
+          belowValue: ' ',
+        },
+      });
+    } else {
+      patch({ mode: newMode });
+    }
   }
 
   const framesText = (binding.frames ?? []).join('\n');
@@ -93,43 +130,185 @@ export function BindingRow({ binding }: BindingRowProps) {
         </select>
       </div>
 
-      {/* Row 3: transform controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        {!isContent && (
-          <>
-            <div style={{ flex: 1 }}>
-              <label>MIN</label>
-              <input
-                type="number"
-                value={transform.min}
-                onChange={(e) => patchTransform({ min: parseFloat(e.target.value) || 0 })}
-                style={{ width: '100%' }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label>MAX</label>
-              <input
-                type="number"
-                value={transform.max}
-                onChange={(e) => patchTransform({ max: parseFloat(e.target.value) || 0 })}
-                style={{ width: '100%' }}
-              />
-            </div>
-          </>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingTop: isContent ? 0 : 10 }}>
-          <label style={{ margin: 0, display: 'inline' }}>INV</label>
-          <input
-            type="checkbox"
-            checked={transform.invert}
-            onChange={(e) => patchTransform({ invert: e.target.checked })}
-          />
-        </div>
+      {/* Row 3: mode toggle */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+        <button
+          onClick={() => handleModeChange('continuous')}
+          style={{
+            flex: 1,
+            padding: '4px 8px',
+            background: mode === 'continuous' ? 'var(--accent)' : 'var(--surface)',
+            color: mode === 'continuous' ? 'var(--bg)' : 'var(--text)',
+            border: mode === 'continuous' ? '1px solid var(--accent)' : '1px solid var(--border)',
+            cursor: 'pointer',
+          }}
+        >
+          Continuous
+        </button>
+        <button
+          onClick={() => handleModeChange('threshold')}
+          style={{
+            flex: 1,
+            padding: '4px 8px',
+            background: mode === 'threshold' ? 'var(--accent)' : 'var(--surface)',
+            color: mode === 'threshold' ? 'var(--bg)' : 'var(--text)',
+            border: mode === 'threshold' ? '1px solid var(--accent)' : '1px solid var(--border)',
+            cursor: 'pointer',
+          }}
+        >
+          Threshold
+        </button>
       </div>
 
-      {/* Row 4: expand frames + delete */}
+      {/* Row 4: mode-specific transform controls */}
+      {mode === 'continuous' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          {!isContent && (
+            <>
+              <div style={{ flex: 1 }}>
+                <label>MIN</label>
+                <input
+                  type="number"
+                  value={continuousTransform.min}
+                  onChange={(e) => patchContinuousTransform({ min: parseFloat(e.target.value) || 0 })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>MAX</label>
+                <input
+                  type="number"
+                  value={continuousTransform.max}
+                  onChange={(e) => patchContinuousTransform({ max: parseFloat(e.target.value) || 0 })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingTop: isContent ? 0 : 10 }}>
+            <label style={{ margin: 0, display: 'inline' }}>INV</label>
+            <input
+              type="checkbox"
+              checked={continuousTransform.invert}
+              onChange={(e) => patchContinuousTransform({ invert: e.target.checked })}
+            />
+          </div>
+        </div>
+      )}
+
+      {mode === 'threshold' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+          {/* Threshold and return threshold */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ flex: 1 }}>
+              <label>THRESHOLD</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={thresholdTransform.threshold}
+                onChange={(e) => patchThresholdTransform({ threshold: parseFloat(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+              <div style={{ fontSize: 9, color: 'var(--muted)', textAlign: 'center' }}>
+                {thresholdTransform.threshold.toFixed(2)}
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label>RETURN</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={thresholdTransform.returnThreshold ?? thresholdTransform.threshold}
+                onChange={(e) => patchThresholdTransform({ returnThreshold: parseFloat(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+              <div style={{ fontSize: 9, color: 'var(--muted)', textAlign: 'center' }}>
+                {(thresholdTransform.returnThreshold ?? thresholdTransform.threshold).toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          {/* Above/Below values */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ flex: 1 }}>
+              <label>ABOVE VALUE</label>
+              <input
+                type={isContent ? 'text' : 'number'}
+                value={thresholdTransform.aboveValue}
+                onChange={(e) => {
+                  const val = isContent ? e.target.value : parseFloat(e.target.value) || 0;
+                  patchThresholdTransform({ aboveValue: val });
+                }}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label>BELOW VALUE</label>
+              <input
+                type={isContent ? 'text' : 'number'}
+                value={thresholdTransform.belowValue}
+                onChange={(e) => {
+                  const val = isContent ? e.target.value : parseFloat(e.target.value) || 0;
+                  patchThresholdTransform({ belowValue: val });
+                }}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+
+          {/* Action dropdown */}
+          <div>
+            <label>ACTION</label>
+            <select
+              value={thresholdTransform.action}
+              onChange={(e) => patchThresholdTransform({ action: e.target.value as ThresholdAction })}
+              style={{ width: '100%' }}
+            >
+              <option value="switch">Switch</option>
+              <option value="strobe">Strobe</option>
+              <option value="pulse">Pulse</option>
+            </select>
+          </div>
+
+          {/* Strobe speed */}
+          {thresholdTransform.action === 'strobe' && (
+            <div>
+              <label>STROBE SPEED (ms)</label>
+              <input
+                type="number"
+                value={thresholdTransform.strobeSpeed ?? 100}
+                onChange={(e) => patchThresholdTransform({ strobeSpeed: parseFloat(e.target.value) || 100 })}
+                style={{ width: '100%' }}
+                min="10"
+                step="10"
+              />
+            </div>
+          )}
+
+          {/* Pulse duration */}
+          {thresholdTransform.action === 'pulse' && (
+            <div>
+              <label>PULSE DURATION (ms)</label>
+              <input
+                type="number"
+                value={thresholdTransform.pulseDuration ?? 200}
+                onChange={(e) => patchThresholdTransform({ pulseDuration: parseFloat(e.target.value) || 200 })}
+                style={{ width: '100%' }}
+                min="10"
+                step="10"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Row 5: expand frames + delete */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        {isContent && (
+        {isContent && mode === 'continuous' && (
           <button
             onClick={() => setExpanded((v) => !v)}
             style={{ padding: '2px 6px' }}
