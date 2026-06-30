@@ -32,7 +32,9 @@
       "Bash(npx tsc:*)",
       "Bash(npm test:*)",
       "Bash(cd C:\\\\Users\\\\jaxon\\\\Code\\\\ascii-studio:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(bash:*)",
+      "Bash(git:*)"
     ]
   }
 }

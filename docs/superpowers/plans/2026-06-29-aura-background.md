@@ -1,3 +1,103 @@
+# Aura Background Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the Lissajous line-trace renderer with large radial gradient blobs that drift across the canvas using Lissajous math, filling the entire screen with saturated color and film grain — either EDM-dark (screen blend on near-black) or aura-light (normal blend on cream).
+
+**Architecture:** Each palette color becomes a large radial gradient blob whose center point traces a Lissajous orbit. All blobs are drawn every frame on top of a slow fade to the background color, producing accumulation. In dark mode `globalCompositeOperation = 'screen'` makes colors add like light; in light mode `'source-over'` at moderate opacity produces the aura/watercolor look. A film grain texture (ImageData, refreshed every 3 frames) overlays everything. Audio drives orbit speed (mid), blob radius (volume + beats), and phase drift (treble). The user toggles dark/light in the panel.
+
+**Tech Stack:** React, TypeScript, HTML5 Canvas API (radial gradients, ImageData, globalCompositeOperation), Zustand, existing `audioEngine` singleton, existing `BeatDetector`
+
+## Global Constraints
+
+- Monospace fonts only (JetBrains Mono, IBM Plex Mono, Fira Code, VT323)
+- 5-token color system: `--bg`, `--surface`, `--text`, `--muted`, `--accent`
+- 1px solid borders, sharp corners, no border-radius, no shadows
+- Inline styles only — no new CSS classes
+- ASCII symbols for icons (✕, +, ◻, ◼) — no emoji, no icon libraries
+- No new external dependencies
+- Read `node_modules/next/dist/docs/` before using any Next.js APIs not already in the codebase
+
+---
+
+### Task 1: Add darkMode field to BackgroundConfig
+
+**Files:**
+- Modify: `lib/types.ts` — add `darkMode: boolean` to `BackgroundConfig`
+- Modify: `lib/composition/defaults.ts` — add `darkMode: false` to `DEFAULT_BACKGROUND`
+- Modify: `lib/composition/storage.ts` — extend `migrateBackground` to add `darkMode` when missing from v1 Lissajous saves
+
+**Interfaces:**
+- Produces: `BackgroundConfig` with fields `enabled`, `colors`, `glow`, `reactivity`, `darkMode: boolean`
+- Produces: `DEFAULT_BACKGROUND.darkMode = false`
+
+- [ ] **Step 1: Add `darkMode` to BackgroundConfig in lib/types.ts**
+
+Find the `BackgroundConfig` interface and add one field:
+
+```typescript
+export interface BackgroundConfig {
+  enabled: boolean;
+  colors: LissajousColor[];
+  glow: boolean;
+  reactivity: number;
+  darkMode: boolean;  // ← add this line
+}
+```
+
+- [ ] **Step 2: Add `darkMode` to DEFAULT_BACKGROUND in lib/composition/defaults.ts**
+
+Find `DEFAULT_BACKGROUND` and add one field:
+
+```typescript
+export const DEFAULT_BACKGROUND: BackgroundConfig = {
+  enabled: true,
+  colors: [
+    { hex: '#c8d4b8' },
+    { hex: '#b8c8d4' },
+    { hex: '#d4b8c8' },
+  ],
+  glow: false,
+  reactivity: 0.6,
+  darkMode: false,   // ← add this line
+};
+```
+
+- [ ] **Step 3: Extend migrateBackground in lib/composition/storage.ts**
+
+The current `migrateBackground` handles the old hue-based config. It also needs to handle v1 Lissajous saves (which have `colors`/`glow`/`reactivity` but no `darkMode`). Replace the entire function:
+
+```typescript
+function migrateBackground(comp: CompositionSpec): CompositionSpec {
+  const bg = comp.background as Record<string, unknown> | undefined;
+  if (!bg) return comp;
+  // Old hue-based config — replace entirely
+  if ('baseHue' in bg) {
+    return { ...comp, background: { ...DEFAULT_BACKGROUND } };
+  }
+  // V1 Lissajous config missing darkMode — add default
+  if (!('darkMode' in bg)) {
+    return { ...comp, background: { ...bg, darkMode: false } as BackgroundConfig };
+  }
+  return comp;
+}
+```
+
+- [ ] **Step 4: Verify TypeScript**
+
+Run: `npx tsc --noEmit`
+
+Expected: zero errors (darkMode is a new required field on BackgroundConfig, so TypeScript will report errors if any existing code constructs a BackgroundConfig literal without it — but the only literals are in defaults.ts which was just updated, and in tests if any exist). If errors appear in other files, fix them by adding `darkMode: false`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/types.ts lib/composition/defaults.ts lib/composition/storage.ts
+git commit -m "feat: add darkMode field to BackgroundConfig with storage migration"
+```
+
+---
+
 ### Task 2: Rewrite CanvasBackground as radial blob renderer
 
 **Files:**
@@ -267,3 +367,110 @@ git commit -m "feat: rewrite background as radial gradient blob renderer with fi
 
 ---
 
+### Task 3: Add dark/light toggle to BackgroundPanel
+
+**Files:**
+- Modify: `components/editor/BackgroundPanel.tsx`
+
+**Interfaces:**
+- Consumes: `BackgroundConfig.darkMode: boolean`
+- Consumes: `updateBackground({ darkMode: boolean })`
+- Produces: THEME section above PALETTE with ◻ LIGHT / ◼ DARK toggle buttons
+
+- [ ] **Step 1: Add THEME section to BackgroundPanel**
+
+In `components/editor/BackgroundPanel.tsx`, find the PALETTE section header:
+
+```tsx
+      {/* Palette */}
+      <SectionHeader>PALETTE</SectionHeader>
+```
+
+Insert a THEME section immediately before it:
+
+```tsx
+      {/* Theme */}
+      <SectionHeader>THEME</SectionHeader>
+      <div style={{ padding: '4px 8px', display: 'flex', gap: 4 }}>
+        {(['light', 'dark'] as const).map((mode) => {
+          const isActive = (cfg.darkMode ?? false) === (mode === 'dark');
+          return (
+            <button
+              key={mode}
+              onClick={() => updateBackground({ darkMode: mode === 'dark' })}
+              style={{
+                flex: 1,
+                padding: '3px 0',
+                background: isActive ? 'var(--accent)' : 'var(--surface)',
+                color: isActive ? 'var(--bg)' : 'var(--muted)',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--muted)'}`,
+                cursor: 'pointer',
+                fontSize: 9,
+                letterSpacing: '0.08em',
+                fontFamily: 'inherit',
+              }}
+            >
+              {mode === 'light' ? '\u25fb LIGHT' : '\u25fc DARK'}
+            </button>
+          );
+        })}
+      </div>
+```
+
+Note: `\u25fb` = ◻, `\u25fc` = ◼ (Unicode escape to avoid encoding issues in source).
+
+- [ ] **Step 2: Remove the GLOW MODE section**
+
+The `glow` field is now superseded by the dark/light mode toggle (dark mode IS the glow mode via screen blend). Remove the GLOW MODE checkbox section entirely from the JSX.
+
+Find and delete this block:
+
+```tsx
+      {/* Glow mode */}
+      <SectionHeader>STYLE</SectionHeader>
+      <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            margin: 0,
+            fontSize: 11,
+            color: 'var(--text)',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={cfg.glow}
+            onChange={(e) => updateBackground({ glow: e.target.checked })}
+          />
+          GLOW MODE
+        </label>
+      </div>
+```
+
+Leave the `glow` field on the type and in storage — do not remove it from `BackgroundConfig` or `DEFAULT_BACKGROUND` (old saved compositions have it; removing it from the type would require another migration). Simply remove the UI control.
+
+- [ ] **Step 3: Verify TypeScript compiles with zero errors**
+
+Run: `npx tsc --noEmit`
+
+Expected: zero errors across the entire project.
+
+- [ ] **Step 4: Run the app and verify toggle**
+
+Run: `npm run dev`
+
+Open the BACKGROUND panel:
+- THEME row shows ◻ LIGHT (active/accent) and ◼ DARK buttons
+- Clicking ◼ DARK: canvas shifts to near-black, blobs glow via screen blend
+- Clicking ◻ LIGHT: canvas returns to cream/aura look with source-over blend
+- GLOW MODE checkbox is gone — no orphaned control
+- PALETTE, REACTIVITY slider still work in both modes
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/editor/BackgroundPanel.tsx
+git commit -m "feat: add dark/light theme toggle, remove orphaned glow checkbox"
+```

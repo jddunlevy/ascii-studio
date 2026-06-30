@@ -1,55 +1,63 @@
-# Task 2 Report: Core TypeScript Types
+# Task 2 Report: Rewrite CanvasBackground as Radial Blob Renderer
 
-## Status: DONE
+## Status
+**DONE**
 
-## Execution Summary
+## Files Changed
+- `components/editor/CanvasBackground.tsx` — full rewrite (111 insertions, 110 deletions)
 
-Created `lib/types.ts` with complete type definitions as specified in task-2-brief.md:
-
-- **SignalName**: 'volume' | 'bass' | 'mid' | 'treble'
-- **VisualProperty**: 7 properties (hue, fontSize, x, y, rotation, opacity, content)
-- **ElementType**: 'text' | 'ascii_art' | 'divider' | 'decorative' (no 'structural')
-- **FontName**: 4 monospace fonts (jetbrains-mono, ibm-plex-mono, fira-code, vt323)
-- **ElementColor**: HSL format (h, s, l numbers)
-- **Transform**: min, max, invert (for signal-to-property mapping)
-- **Binding**: Signal bindings with elementId field (global storage pattern)
-- **LiveElementOverride**: Runtime overrides for all visual properties
-- **Signals**: Record<SignalName, number> (0.0–1.0 range)
-- **Element types**: TextElement, AsciiArtElement, DividerElement, DecorativeElement (discriminated union)
-- **CompositionSpec**: Complete composition structure
-
-## Verification
-
-### TypeScript Compilation
-```bash
-npx tsc --noEmit
+## TypeScript Verification
 ```
-✓ Exit code 0 — no errors
-✓ Strict mode compliance maintained
-✓ No `any` types used
-
-### Type Safety Constraints Verified
-- ✓ HSL color format (not hex strings)
-- ✓ Element types discriminated (no 'structural')
-- ✓ Bindings have elementId field
-- ✓ Signals values constrained to 0.0–1.0 via Record type
-- ✓ No nested bindings on elements
+npx tsc --noEmit
+(no output — zero errors)
+```
 
 ## Commits Made
+```
+3b22f7c feat: rewrite background as radial gradient blob renderer with film grain
+```
 
-| Hash    | Message              |
-|---------|----------------------|
-| 25adc1b | feat: add core types |
+## Implementation Summary
 
-## Files Modified
+### What Was Done
+Completely rewrote `CanvasBackground.tsx` to replace the Lissajous curve renderer with a radial gradient blob renderer. The new implementation:
 
-- **Created**: `lib/types.ts` (112 lines)
+1. **Blob System**: N blobs (one per palette color) orbit their centers using independent Lissajous curves defined by `BLOB_ORBITS[]`
+2. **Radial Gradients**: Each blob renders as a radial gradient (center opaque → edges transparent)
+3. **Dark Mode Support**: Respects `BackgroundConfig.darkMode` boolean:
+   - Light mode: `globalCompositeOperation = 'source-over'`, cream background
+   - Dark mode: `globalCompositeOperation = 'screen'`, near-black `rgb(10,8,12)` background
+4. **Film Grain**: Offscreen canvas with randomized alpha values, refreshed every 3 frames, composited at 0.45 opacity
+5. **Audio Reactivity**:
+   - **Bass**: Beat detection (threshold 0.65, minInterval 300ms) triggers 0.25 second bloom pulse
+   - **Mid**: Drives time advancement speed (t += 0.006 + mid * reactivity * 0.01)
+   - **Treble**: Applies phase shift to orbit paths (twists the orbit geometry)
+   - **Volume**: Expands both orbit spread and blob radius
 
-## Test Summary
+### Key Implementation Details
+- **Animation State**: Maintains `t` (time) and `beatPulse` across frames
+- **Grain Refresh**: Updates grain ImageData every 3 frames to balance performance and visual texture variety
+- **Resize Handling**: ResizeObserver detects canvas changes and recreates grain canvas as needed
+- **Disabled State**: When `cfg.enabled === false`, renders solid background with no blobs
+- **Color Fallback**: Uses `DEFAULT_BACKGROUND.colors` if `cfg.colors` is empty
 
-TypeScript compilation successful; all 112 lines of type definitions compile without errors in strict mode.
+### Visual Behavior
+- **Without Audio**: Soft overlapping color blobs slowly drift across the canvas, covering the entire surface with smooth gradients
+- **With Audio**: 
+  - Beat pulses expand blob radius significantly (0.18 × half-min)
+  - Treble twists the orbit paths for dynamic shape morphing
+  - Volume expands orbit spread and blob radius
+  - Mid accelerates the time advancement for faster drift
+- **Grain**: Subtle film grain texture adds warmth and tactile quality, refreshed regularly but not excessively
 
 ## Concerns
+None. Implementation follows the brief exactly:
+- All required interfaces consumed (BackgroundConfig, audioEngine signals, BeatDetector)
+- All rendering specifications met (radial gradients, composite operations, grain overlay)
+- Dark mode fully integrated
+- TypeScript clean (zero errors)
+- Code matches brief verbatim
 
-None. All requirements met.
-
+## Next Steps
+Task 3 will integrate this with `BackgroundPanel` UI controls for dark mode toggle and color management.
+Fix: grainFrame = 2 added to setupGrain (commit 057a62c). tsc: 0 errors.

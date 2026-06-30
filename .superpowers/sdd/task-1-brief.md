@@ -1,156 +1,77 @@
-## Task 1: Scaffold
+### Task 1: Add darkMode field to BackgroundConfig
 
-- [ ] **1.1** Run the following command to create the Next.js project. If the CLI prompts interactively, answer: App Router = yes, import alias = `@/*`.
+**Files:**
+- Modify: `lib/types.ts` — add `darkMode: boolean` to `BackgroundConfig`
+- Modify: `lib/composition/defaults.ts` — add `darkMode: false` to `DEFAULT_BACKGROUND`
+- Modify: `lib/composition/storage.ts` — extend `migrateBackground` to add `darkMode` when missing from v1 Lissajous saves
 
-```bash
-npx create-next-app@latest ascii-studio --typescript --tailwind --app --no-src-dir --import-alias "@/*"
-cd ascii-studio
-```
+**Interfaces:**
+- Produces: `BackgroundConfig` with fields `enabled`, `colors`, `glow`, `reactivity`, `darkMode: boolean`
+- Produces: `DEFAULT_BACKGROUND.darkMode = false`
 
-- [ ] **1.2** Install runtime dependencies:
+- [ ] **Step 1: Add `darkMode` to BackgroundConfig in lib/types.ts**
 
-```bash
-npm install zustand @dnd-kit/core @dnd-kit/utilities nanoid
-```
-
-- [ ] **1.3** Install dev/test dependencies:
-
-```bash
-npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/jest-dom
-```
-
-- [ ] **1.4** Create `vitest.config.ts` at the project root:
+Find the `BackgroundConfig` interface and add one field:
 
 ```typescript
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['./vitest.setup.ts'],
-    globals: true,
-  },
-  resolve: {
-    alias: { '@': path.resolve(__dirname, '.') },
-  },
-});
+export interface BackgroundConfig {
+  enabled: boolean;
+  colors: LissajousColor[];
+  glow: boolean;
+  reactivity: number;
+  darkMode: boolean;  // ← add this line
+}
 ```
 
-- [ ] **1.5** Create `vitest.setup.ts` at the project root:
+- [ ] **Step 2: Add `darkMode` to DEFAULT_BACKGROUND in lib/composition/defaults.ts**
+
+Find `DEFAULT_BACKGROUND` and add one field:
 
 ```typescript
-import '@testing-library/jest-dom';
-```
-
-- [ ] **1.6** Add test scripts to `package.json`. Open `package.json` and add to the `"scripts"` object:
-
-```json
-"test": "vitest run",
-"test:watch": "vitest"
-```
-
-Full `scripts` block should look like:
-
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint",
-  "test": "vitest run",
-  "test:watch": "vitest"
-}
-```
-
-- [ ] **1.7** Replace `app/globals.css` with the full theme CSS:
-
-```css
-@import "tailwindcss";
-
-:root {
-  --bg: #f5f0e8;
-  --surface: #ede8df;
-  --text: #2a2520;
-  --muted: #8a8075;
-  --accent: #5a6e4a;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Fira Code', monospace;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-button {
-  font-family: inherit;
-  font-size: 11px;
-  cursor: pointer;
-  border: 1px solid var(--muted);
-  background: var(--surface);
-  color: var(--text);
-  padding: 3px 8px;
-}
-button:hover { border-color: var(--accent); color: var(--accent); }
-
-input, select, textarea {
-  font-family: inherit;
-  font-size: 11px;
-  border: 1px solid var(--muted);
-  background: var(--bg);
-  color: var(--text);
-  padding: 3px 6px;
-}
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-
-label {
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  display: block;
-  margin-bottom: 2px;
-}
-```
-
-- [ ] **1.8** Replace `app/layout.tsx` with minimal layout (fonts loaded from system):
-
-```tsx
-import type { Metadata } from 'next';
-import './globals.css';
-
-export const metadata: Metadata = {
-  title: 'ascii-studio',
-  description: 'audio-visual ASCII art studio',
+export const DEFAULT_BACKGROUND: BackgroundConfig = {
+  enabled: true,
+  colors: [
+    { hex: '#c8d4b8' },
+    { hex: '#b8c8d4' },
+    { hex: '#d4b8c8' },
+  ],
+  glow: false,
+  reactivity: 0.6,
+  darkMode: false,   // ← add this line
 };
+```
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+- [ ] **Step 3: Extend migrateBackground in lib/composition/storage.ts**
+
+The current `migrateBackground` handles the old hue-based config. It also needs to handle v1 Lissajous saves (which have `colors`/`glow`/`reactivity` but no `darkMode`). Replace the entire function:
+
+```typescript
+function migrateBackground(comp: CompositionSpec): CompositionSpec {
+  const bg = comp.background as Record<string, unknown> | undefined;
+  if (!bg) return comp;
+  // Old hue-based config — replace entirely
+  if ('baseHue' in bg) {
+    return { ...comp, background: { ...DEFAULT_BACKGROUND } };
+  }
+  // V1 Lissajous config missing darkMode — add default
+  if (!('darkMode' in bg)) {
+    return { ...comp, background: { ...bg, darkMode: false } as BackgroundConfig };
+  }
+  return comp;
 }
 ```
 
-- [ ] **1.9** Verify the dev server starts with no TypeScript errors:
+- [ ] **Step 4: Verify TypeScript**
+
+Run: `npx tsc --noEmit`
+
+Expected: zero errors (darkMode is a new required field on BackgroundConfig, so TypeScript will report errors if any existing code constructs a BackgroundConfig literal without it — but the only literals are in defaults.ts which was just updated, and in tests if any exist). If errors appear in other files, fix them by adding `darkMode: false`.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-npm run dev
-```
-
-Expected: server starts at `http://localhost:3000`, terminal shows no TS compile errors.
-
-- [ ] **1.10** Initialize git and make the first commit:
-
-```bash
-git init && git add . && git commit -m "feat: scaffold ascii-studio"
+git add lib/types.ts lib/composition/defaults.ts lib/composition/storage.ts
+git commit -m "feat: add darkMode field to BackgroundConfig with storage migration"
 ```
 
 ---
