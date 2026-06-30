@@ -4,6 +4,7 @@ import { useState } from 'react';
 import useStudioStore from '@/lib/store/studioStore';
 import type { Binding, SignalName, VisualProperty } from '@/lib/types';
 import { BindingPreview } from './binding/BindingPreview';
+import { BindingCalibration } from './calibration/BindingCalibration';
 
 const SIGNAL_OPTIONS: SignalName[] = ['volume', 'bass', 'mid', 'treble'];
 const PROPERTY_OPTIONS: VisualProperty[] = [
@@ -157,6 +158,9 @@ export function BindingRow({ binding }: BindingRowProps) {
           />
         </div>
       )}
+
+      {/* Binding Calibration */}
+      <BindingCalibration binding={binding} />
 
       {/* Live preview */}
       <BindingPreview binding={binding} />
