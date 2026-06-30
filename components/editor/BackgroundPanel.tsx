@@ -165,7 +165,7 @@ export function BackgroundPanel() {
                 fontFamily: 'inherit',
               }}
             >
-              {mode === 'light' ? '◻ LIGHT' : '◼ DARK'}
+              {mode === 'light' ? '\u25fb LIGHT' : '\u25fc DARK'}
             </button>
           );
         })}
