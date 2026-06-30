@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { applyTransform, applyBinding, computeLiveValues } from './animationLoop';
-import type { Binding, Signals } from '@/lib/types';
+import type { Binding, Signals, GlobalAudioConfig, ElementSensitivity } from '@/lib/types';
+
+const mockGlobalConfig: GlobalAudioConfig = {
+  volumeSensitivity: 1.0,
+  bassSensitivity: 1.0,
+  midSensitivity: 1.0,
+  trebleSensitivity: 1.0,
+  noiseFloor: 0.05,
+  signalSmoothing: 0.5,
+};
+
+const mockElementSensitivities: Record<string, ElementSensitivity> = {};
 
 describe('applyTransform', () => {
   it('returns min when signal is 0 and not inverted', () => {
@@ -35,7 +46,7 @@ describe('applyBinding', () => {
       property: 'opacity',
       transform: { min: 0, max: 1, invert: false },
     };
-    const result = applyBinding(binding, signals);
+    const result = applyBinding(binding, signals, mockGlobalConfig, mockElementSensitivities, Date.now());
     expect(result).toEqual({ property: 'opacity', value: 0.5 });
   });
 
@@ -50,7 +61,7 @@ describe('applyBinding', () => {
     };
     // signal=0.5, not inverted => effective=0.5
     // index = floor(0.5 * (4-1)) = floor(1.5) = 1 => '·'
-    const result = applyBinding(binding, signals);
+    const result = applyBinding(binding, signals, mockGlobalConfig, mockElementSensitivities, Date.now());
     expect(result).toEqual({ property: 'content', value: '·' });
   });
 
@@ -63,7 +74,7 @@ describe('applyBinding', () => {
       transform: { min: 0, max: 1, invert: false },
       frames: [],
     };
-    const result = applyBinding(binding, signals);
+    const result = applyBinding(binding, signals, mockGlobalConfig, mockElementSensitivities, Date.now());
     expect(result).toEqual({ property: 'content', value: '' });
   });
 });
@@ -87,7 +98,7 @@ describe('computeLiveValues', () => {
         transform: { min: 0, max: 360, invert: false },
       },
     ];
-    const live = computeLiveValues(bindings, signals);
+    const live = computeLiveValues(bindings, signals, mockGlobalConfig, mockElementSensitivities);
     expect(live['el1']).toEqual({ opacity: 1 });
     expect(live['el2']).toEqual({ hue: 360 });
   });
@@ -110,7 +121,7 @@ describe('computeLiveValues', () => {
         transform: { min: 0, max: 180, invert: false },
       },
     ];
-    const live = computeLiveValues(bindings, signals);
+    const live = computeLiveValues(bindings, signals, mockGlobalConfig, mockElementSensitivities);
     expect(live['el1']).toEqual({ opacity: 0.2, hue: 180 });
   });
 });

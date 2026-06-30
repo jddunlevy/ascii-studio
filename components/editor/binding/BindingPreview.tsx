@@ -17,8 +17,11 @@ export function BindingPreview({ binding }: BindingPreviewProps) {
     function tick() {
       const signals = audioEngine.getSignals();
       const sv = signals[binding.signal] ?? 0;
+      const transform = binding.mode === 'continuous' && binding.continuousTransform
+        ? binding.continuousTransform
+        : binding.transform ?? { min: 0, max: 1, invert: false };
       const ov = binding.property !== 'content'
-        ? applyTransform(sv, binding.transform)
+        ? applyTransform(sv, transform)
         : 0;
       setSignalValue(sv);
       setOutputValue(ov);
@@ -26,7 +29,7 @@ export function BindingPreview({ binding }: BindingPreviewProps) {
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [binding.signal, binding.transform.min, binding.transform.max, binding.transform.invert, binding.property]);
+  }, [binding.signal, binding.mode, binding.transform, binding.continuousTransform, binding.property]);
 
   return (
     <div style={{

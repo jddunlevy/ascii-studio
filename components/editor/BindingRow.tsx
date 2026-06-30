@@ -22,13 +22,15 @@ export function BindingRow({ binding }: BindingRowProps) {
 
   const elements = composition?.elements ?? [];
   const isContent = binding.property === 'content';
+  const transform = binding.transform ?? { min: 0, max: 1, invert: false };
 
   function patch(changes: Partial<Binding>) {
     updateBinding(binding.id, changes);
   }
 
   function patchTransform(changes: Partial<Binding['transform']>) {
-    updateBinding(binding.id, { transform: { ...binding.transform, ...changes } });
+    const currentTransform = binding.transform ?? { min: 0, max: 1, invert: false };
+    updateBinding(binding.id, { transform: { ...currentTransform, ...changes } });
   }
 
   const framesText = (binding.frames ?? []).join('\n');
@@ -98,7 +100,7 @@ export function BindingRow({ binding }: BindingRowProps) {
               <label>MIN</label>
               <input
                 type="number"
-                value={binding.transform.min}
+                value={transform.min}
                 onChange={(e) => patchTransform({ min: parseFloat(e.target.value) || 0 })}
                 style={{ width: '100%' }}
               />
@@ -107,7 +109,7 @@ export function BindingRow({ binding }: BindingRowProps) {
               <label>MAX</label>
               <input
                 type="number"
-                value={binding.transform.max}
+                value={transform.max}
                 onChange={(e) => patchTransform({ max: parseFloat(e.target.value) || 0 })}
                 style={{ width: '100%' }}
               />
@@ -118,7 +120,7 @@ export function BindingRow({ binding }: BindingRowProps) {
           <label style={{ margin: 0, display: 'inline' }}>INV</label>
           <input
             type="checkbox"
-            checked={binding.transform.invert}
+            checked={transform.invert}
             onChange={(e) => patchTransform({ invert: e.target.checked })}
           />
         </div>

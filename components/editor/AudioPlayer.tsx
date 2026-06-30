@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import useStudioStore from '@/lib/store/studioStore';
 import { audioEngine } from '@/lib/audio/audioEngine';
 import { startAnimationLoop } from '@/lib/animation/animationLoop';
+import { DEFAULT_GLOBAL_AUDIO } from '@/lib/composition/defaults';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -36,6 +37,8 @@ export function AudioPlayer() {
     cleanupLoopRef.current = startAnimationLoop(
       () => audioEngine.getSignals(),
       () => useStudioStore.getState().composition?.bindings ?? [],
+      () => useStudioStore.getState().composition?.globalAudioConfig ?? DEFAULT_GLOBAL_AUDIO,
+      () => ({}), // elementSensitivities - empty for now, will be added to store in future task
       (liveValues) => {
         setLiveValues(liveValues);
         // Update current time

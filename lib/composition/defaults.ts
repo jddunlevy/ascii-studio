@@ -125,5 +125,21 @@ export function createElement(
         fontSize: 13,
         size: { w: 240, h: 120 },
       };
+    case 'aura':
+      return {
+        ...base,
+        type: 'aura',
+        colorStops: [
+          { position: 0, color: '#4ECDC4' },
+          { position: 1, color: '#8E44AD' },
+        ],
+        blur: 50,
+        blendMode: 'screen',
+        size: { w: 200, h: 200 },
+      };
+    default: {
+      const _exhaustive: never = type;
+      throw new Error(`Unknown element type: ${_exhaustive}`);
+    }
   }
 }
