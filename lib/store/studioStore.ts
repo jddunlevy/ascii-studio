@@ -7,9 +7,11 @@ import type {
   LiveValues,
   BackgroundConfig,
   VisualizerElement,
+  GlobalAudioConfig,
+  ElementSensitivity,
 } from '@/lib/types';
 import { saveComposition } from '@/lib/composition/storage';
-import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
+import { DEFAULT_BACKGROUND, DEFAULT_GLOBAL_AUDIO } from '@/lib/composition/defaults';
 
 interface StudioState {
   composition: CompositionSpec | null;
@@ -19,7 +21,7 @@ interface StudioState {
   loop: boolean;
   liveValues: LiveValues;
   selectedElementId: string | null;
-  activeTab: 'palette' | 'bindings';
+  activeTab: 'palette' | 'bindings' | 'presets';
 
   loadComposition(comp: CompositionSpec): void;
   updateCompositionName(name: string): void;
@@ -31,7 +33,7 @@ interface StudioState {
   removeBinding(id: string): void;
   setLiveValues(values: LiveValues): void;
   setSelectedElementId(id: string | null): void;
-  setActiveTab(tab: 'palette' | 'bindings'): void;
+  setActiveTab(tab: 'palette' | 'bindings' | 'presets'): void;
   setPlayback(
     state: Partial<
       Pick<StudioState, 'isPlaying' | 'currentTime' | 'duration' | 'loop'>
@@ -40,6 +42,8 @@ interface StudioState {
   updateBackground(changes: Partial<BackgroundConfig>): void;
   addVisualizer(visualizer: VisualizerElement): void;
   updateVisualizer(id: string, changes: Partial<VisualizerElement>): void;
+  updateGlobalAudioConfig(changes: Partial<GlobalAudioConfig>): void;
+  setElementSensitivity(elementId: string, sensitivity: ElementSensitivity | null): void;
   persistComposition(): void;
 }
 
@@ -198,6 +202,38 @@ const useStudioStore = create<StudioState>((set, get) => ({
         },
       };
     }),
+
+  updateGlobalAudioConfig(changes) {
+    set((s) => {
+      if (!s.composition) return s;
+      return {
+        composition: {
+          ...s.composition,
+          globalAudioConfig: {
+            ...DEFAULT_GLOBAL_AUDIO,
+            ...(s.composition.globalAudioConfig ?? {}),
+            ...changes,
+          },
+        },
+      };
+    });
+  },
+
+  setElementSensitivity(elementId, sensitivity) {
+    set((s) => {
+      if (!s.composition) return s;
+      return {
+        composition: {
+          ...s.composition,
+          elements: s.composition.elements.map((el) =>
+            el.id === elementId
+              ? { ...el, sensitivity: sensitivity ?? undefined }
+              : el
+          ),
+        },
+      };
+    });
+  },
 
   persistComposition() {
     const { composition } = get();
