@@ -1,5 +1,5 @@
 import type { CompositionSpec } from '@/lib/types';
-import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
+import { DEFAULT_BACKGROUND, DEFAULT_GLOBAL_AUDIO } from '@/lib/composition/defaults';
 
 const STORAGE_KEY = 'ascii-studio:compositions';
 
@@ -17,13 +17,37 @@ function migrateBackground(comp: CompositionSpec): CompositionSpec {
   return comp;
 }
 
+function migrateComposition(comp: CompositionSpec): CompositionSpec {
+  return {
+    ...comp,
+    // Migrate old bindings without 'mode' field
+    bindings: comp.bindings.map(binding => {
+      if (!binding.mode) {
+        // Old binding - migrate to continuous mode
+        return {
+          ...binding,
+          mode: 'continuous' as const,
+          continuousTransform: binding.transform ? {
+            min: binding.transform.min,
+            max: binding.transform.max,
+            invert: binding.transform.invert,
+          } : { min: 0, max: 1, invert: false },
+        };
+      }
+      return binding;
+    }),
+    // Add default global audio config if missing
+    globalAudioConfig: comp.globalAudioConfig ?? DEFAULT_GLOBAL_AUDIO,
+  };
+}
+
 function readAll(): Record<string, CompositionSpec> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, CompositionSpec>;
     return Object.fromEntries(
-      Object.entries(parsed).map(([id, comp]) => [id, migrateBackground(comp)])
+      Object.entries(parsed).map(([id, comp]) => [id, migrateComposition(migrateBackground(comp))])
     );
   } catch {
     return {};
