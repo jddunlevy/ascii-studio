@@ -21,18 +21,10 @@ const DEFAULT_CANVAS: CanvasConfig = {
 
 export const DEFAULT_BACKGROUND: BackgroundConfig = {
   enabled: true,
-  colors: [
-    { hex: '#c8d4b8' }, // sage green
-    { hex: '#b8c8d4' }, // soft blue
-    { hex: '#d4b8c8' }, // dusty pink
-  ],
-  glow: false,
+  baseColor: '#000000',
+  reactColor: '#1a0a2e',
+  reactSignal: 'bass',
   reactivity: 0.6,
-  darkMode: true,
-  glowIntensity: 0.5,
-  pixelSize: 4,
-  spotlightSize: 1.0,
-  spotlightSpeed: 1.0,
 };
 
 export function createComposition(name: string): CompositionSpec {

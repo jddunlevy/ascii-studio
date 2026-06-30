@@ -136,20 +136,12 @@ export interface CanvasConfig {
   grid: number;
 }
 
-export interface LissajousColor {
-  hex: string; // '#rrggbb'
-}
-
 export interface BackgroundConfig {
   enabled: boolean;
-  colors: LissajousColor[];    // 2–5 colors, gradient along Lissajous curve
-  glow: boolean;               // retained for storage compatibility; not used by renderer
-  reactivity: number;          // 0–1, scales audio influence on figure parameters
-  darkMode: boolean;           // retained for storage compatibility; always dark now
-  glowIntensity?: number;      // 0–1, blob center brightness (pulses with volume)
-  pixelSize?: number;          // 1–32, pixelation block size (1 = off)
-  spotlightSize?: number;      // 0.1–3, multiplier on spotlight radius
-  spotlightSpeed?: number;     // 0–4, multiplier on animation speed
+  baseColor: string;                                   // '#rrggbb' — resting color
+  reactColor: string;                                  // '#rrggbb' — color it shifts toward
+  reactSignal: 'volume' | 'bass' | 'mid' | 'treble'; // which audio signal drives the shift
+  reactivity: number;                                  // 0–1, strength of the shift
 }
 
 export interface CompositionSpec {
