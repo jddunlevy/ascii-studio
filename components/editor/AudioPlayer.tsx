@@ -1,6 +1,7 @@
 // components/editor/AudioPlayer.tsx
 'use client';
 import { useRef, useEffect, useCallback } from 'react';
+import type { ElementSensitivity } from '@/lib/types';
 import useStudioStore from '@/lib/store/studioStore';
 import { audioEngine } from '@/lib/audio/audioEngine';
 import { startAnimationLoop } from '@/lib/animation/animationLoop';
@@ -38,7 +39,17 @@ export function AudioPlayer() {
       () => audioEngine.getSignals(),
       () => useStudioStore.getState().composition?.bindings ?? [],
       () => useStudioStore.getState().composition?.globalAudioConfig ?? DEFAULT_GLOBAL_AUDIO,
-      () => ({}), // elementSensitivities - empty for now, will be added to store in future task
+      () => {
+        const composition = useStudioStore.getState().composition;
+        if (!composition) return {};
+        const sensitivities: Record<string, ElementSensitivity> = {};
+        composition.elements.forEach(el => {
+          if (el.sensitivity) {
+            sensitivities[el.id] = el.sensitivity;
+          }
+        });
+        return sensitivities;
+      },
       (liveValues) => {
         setLiveValues(liveValues);
         // Update current time
