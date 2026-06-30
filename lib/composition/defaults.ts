@@ -7,7 +7,17 @@ import type {
   FontName,
   CanvasConfig,
   BackgroundConfig,
+  GlobalAudioConfig,
 } from '@/lib/types';
+
+export const DEFAULT_GLOBAL_AUDIO: GlobalAudioConfig = {
+  volumeSensitivity: 1.0,
+  bassSensitivity: 1.0,
+  midSensitivity: 1.0,
+  trebleSensitivity: 1.0,
+  noiseFloor: 0.05,
+  signalSmoothing: 0.5,
+};
 
 export const DEFAULT_FONT: FontName = 'jetbrains-mono';
 
