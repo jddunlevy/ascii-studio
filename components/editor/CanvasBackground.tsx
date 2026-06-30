@@ -155,7 +155,8 @@ export function CanvasBackground() {
       if (beat) beatPulse = 0.25;
       beatPulse = Math.max(0, beatPulse - 0.008);
 
-      t += 0.006 + signals.mid * r * 0.01;
+      const orbSpeed = Math.max(0, cfg.orbSpeed ?? 1.0);
+      t += (0.006 + signals.mid * r * 0.01) * orbSpeed;
       if (t > 1e6) t -= 1e6;
 
       const phaseShift = signals.treble * r * 0.8;
@@ -166,8 +167,9 @@ export function CanvasBackground() {
       const cy_w = wh / 2;
       const spreadX_w = ww * (0.2 + signals.volume * r * 0.08);
       const spreadY_w = wh * (0.2 + signals.volume * r * 0.08);
+      const orbSize = Math.max(0.1, cfg.orbSize ?? 1.0);
       const blobRadius_w =
-        Math.min(ww, wh) * 0.52 +
+        Math.min(ww, wh) * 0.52 * orbSize +
         beatPulse * Math.min(ww, wh) * 0.18 +
         signals.volume * r * Math.min(ww, wh) * 0.15;
 
