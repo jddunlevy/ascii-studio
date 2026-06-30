@@ -6,15 +6,17 @@ import useStudioStore from '@/lib/store/studioStore';
 import { BeatDetector } from '@/lib/audio/BeatDetector';
 import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
 
-// Per-spotlight sweep params. Each light uses independent x/y angular speeds
-// so paths are smooth elliptical arcs — no Lissajous resonances, no ripple.
-const SPOTLIGHT_ORBITS = [
-  { sx: 1.00, sy: 0.90, phase: 0 },
-  { sx: 0.65, sy: 0.75, phase: Math.PI * 0.50 },
-  { sx: 1.35, sy: 1.20, phase: Math.PI },
-  { sx: 0.80, sy: 1.05, phase: Math.PI * 1.50 },
-  { sx: 1.15, sy: 0.85, phase: Math.PI * 0.25 },
+// Each spotlight orbits the canvas center on its own circle.
+// speed: angular velocity multiplier  |  phase: starting angle offset
+const ORBITS = [
+  { speed: 0.80, phase: 0 },
+  { speed: 0.53, phase: Math.PI * 0.40 },
+  { speed: 1.10, phase: Math.PI * 0.80 },
+  { speed: 0.67, phase: Math.PI * 1.20 },
+  { speed: 0.95, phase: Math.PI * 1.60 },
 ];
+
+const BASE_TICK = 0.008; // radians per frame at speed = 1
 
 function hexToRgba(hex: string, alpha: number): string {
   if (!/^#[0-9a-f]{6}$/i.test(hex)) return `rgba(200,200,200,${alpha})`;
@@ -36,13 +38,12 @@ export function CanvasBackground() {
     let t = 0;
     let beatPulse = 0;
 
-    // Work canvas: blobs are rendered here at reduced resolution.
-    // Upscaled to the main canvas each frame with imageSmoothingEnabled=false
-    // to produce the chunky pixel effect. Fade/persistence lives here too.
+    // Work canvas: spotlights render here at reduced resolution,
+    // then upscaled with no smoothing for the pixelation effect.
     let workCanvas: HTMLCanvasElement | null = null;
     let workCtx: CanvasRenderingContext2D | null = null;
 
-    // Grain offscreen canvas — full resolution, composited on top after upscale
+    // Grain canvas: full-res TV static composited on top each frame.
     let grainCanvas: HTMLCanvasElement | null = null;
     let grainCtx: CanvasRenderingContext2D | null = null;
     let grainData: ImageData | null = null;
@@ -60,7 +61,7 @@ export function CanvasBackground() {
       workCanvas.height = wh;
       workCtx = workCanvas.getContext('2d');
       if (workCtx) {
-        workCtx.fillStyle = 'rgb(0,0,0)';
+        workCtx.fillStyle = '#000';
         workCtx.fillRect(0, 0, ww, wh);
       }
     }
@@ -87,7 +88,7 @@ export function CanvasBackground() {
       setupWork(w, h, pixelSize);
       lastPixelSize = pixelSize;
       setupGrain(w, h);
-      ctx!.fillStyle = 'rgb(0,0,0)';
+      ctx!.fillStyle = '#000';
       ctx!.fillRect(0, 0, w, h);
     }
 
@@ -97,15 +98,12 @@ export function CanvasBackground() {
 
     function drawGrain() {
       if (!grainCanvas || !grainCtx || !grainData) return;
-      // Refresh noise pattern every 3 frames, composite every frame
       grainFrame = (grainFrame + 1) % 3;
       if (grainFrame === 0) {
-        const data = grainData.data;
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = 255;
-          data[i + 1] = 255;
-          data[i + 2] = 255;
-          data[i + 3] = Math.random() * 18 | 0; // 0–18 alpha (~7% max)
+        const d = grainData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          d[i] = d[i + 1] = d[i + 2] = 255;
+          d[i + 3] = Math.random() * 18 | 0;
         }
         grainCtx.putImageData(grainData, 0, 0);
       }
@@ -121,7 +119,7 @@ export function CanvasBackground() {
 
       if (!cfg.enabled) {
         ctx!.globalCompositeOperation = 'source-over';
-        ctx!.fillStyle = 'rgb(0,0,0)';
+        ctx!.fillStyle = '#000';
         ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
         raf = requestAnimationFrame(tick);
         return;
@@ -129,94 +127,74 @@ export function CanvasBackground() {
 
       const w = canvas!.width;
       const h = canvas!.height;
-      if (w === 0 || h === 0) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
+      if (w === 0 || h === 0) { raf = requestAnimationFrame(tick); return; }
 
-      // Recreate work canvas when pixel size changes
       if (pixelSize !== lastPixelSize) {
         setupWork(w, h, pixelSize);
         lastPixelSize = pixelSize;
       }
-
-      if (!workCtx || !workCanvas) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
+      if (!workCtx || !workCanvas) { raf = requestAnimationFrame(tick); return; }
 
       const ww = workCanvas.width;
       const wh = workCanvas.height;
 
-      const signals = audioEngine.getSignals();
-      const r = cfg.reactivity;
-
-      // Beat detection
-      const beat = beatDetector.detectBeat(signals.bass, 0.65, 300);
-      if (beat) beatPulse = 0.25;
-      beatPulse = Math.max(0, beatPulse - 0.008);
-
-      const spotlightSpeed = Math.max(0, cfg.spotlightSpeed ?? 1.0);
-      t += (0.006 + signals.mid * r * 0.01) * spotlightSpeed;
+      // Advance time
+      t += BASE_TICK * Math.max(0, cfg.spotlightSpeed ?? 1.0);
       if (t > 1e6) t -= 1e6;
 
-      // Spotlight geometry — computed in work-canvas space so pixelSize doesn't
-      // affect the visual proportions of the lights
+      // Beat pulse on glow intensity
+      const signals = audioEngine.getSignals();
+      const beat = beatDetector.detectBeat(signals.bass, 0.65, 300);
+      if (beat) beatPulse = 1;
+      beatPulse *= 0.92;
+
+      const glowBase = Math.max(0, Math.min(1, cfg.glowIntensity ?? 0.5));
+      const glow = Math.min(1, glowBase + signals.volume * (cfg.reactivity ?? 0.6) * 0.4 + beatPulse * 0.2);
+
+      // Spotlight geometry in work-canvas space
       const cx_w = ww / 2;
       const cy_w = wh / 2;
-      const spreadX_w = ww * (0.2 + signals.volume * r * 0.08);
-      const spreadY_w = wh * (0.2 + signals.volume * r * 0.08);
-      const spotlightSize = Math.max(0.1, cfg.spotlightSize ?? 1.0);
-      const spotlightRadius_w =
-        Math.min(ww, wh) * 0.52 * spotlightSize +
-        beatPulse * Math.min(ww, wh) * 0.18 +
-        signals.volume * r * Math.min(ww, wh) * 0.15;
-
-      // Glow intensity with volume pulse — drives blob alpha stops
-      const glowBase = Math.max(0, Math.min(1, cfg.glowIntensity ?? 0.5));
-      const glow = Math.min(1, glowBase + signals.volume * r * 0.5);
+      const orbitR_w  = Math.min(ww, wh) * 0.28;                          // orbit circle radius
+      const beamR_w   = Math.min(ww, wh) * 0.45 * Math.max(0.1, cfg.spotlightSize ?? 1.0); // beam spread
 
       const colors = cfg.colors.length > 0 ? cfg.colors : DEFAULT_BACKGROUND.colors;
 
-      // ---- Fade work canvas toward pure black ----
-      const fadeAlpha = 0.028 + (beat ? 0.04 : 0);
+      // ---- Clear to black ----
       workCtx.globalCompositeOperation = 'source-over';
-      workCtx.fillStyle = `rgba(0,0,0,${fadeAlpha})`;
+      workCtx.fillStyle = '#000';
       workCtx.fillRect(0, 0, ww, wh);
 
-      // ---- Draw spotlights to work canvas (screen = additive light) ----
+      // ---- Draw spotlights (screen blend = additive colored light) ----
       workCtx.globalCompositeOperation = 'screen';
 
       for (let i = 0; i < colors.length; i++) {
-        const orbit = SPOTLIGHT_ORBITS[i % SPOTLIGHT_ORBITS.length];
-        const bx_w = cx_w + spreadX_w * Math.cos(t * orbit.sx + orbit.phase);
-        const by_w = cy_w + spreadY_w * Math.sin(t * orbit.sy + orbit.phase);
+        const o = ORBITS[i % ORBITS.length];
+        const angle = t * o.speed + o.phase;
+        const x = cx_w + orbitR_w * Math.cos(angle);
+        const y = cy_w + orbitR_w * Math.sin(angle);
 
-        const grad = workCtx.createRadialGradient(bx_w, by_w, 0, bx_w, by_w, spotlightRadius_w);
-        grad.addColorStop(0,    hexToRgba(colors[i].hex, glow * 0.88));
-        grad.addColorStop(0.45, hexToRgba(colors[i].hex, glow * 0.35));
+        const grad = workCtx.createRadialGradient(x, y, 0, x, y, beamR_w);
+        grad.addColorStop(0,    hexToRgba(colors[i].hex, glow));
+        grad.addColorStop(0.35, hexToRgba(colors[i].hex, glow * 0.35));
         grad.addColorStop(1,    hexToRgba(colors[i].hex, 0));
         workCtx.fillStyle = grad;
         workCtx.fillRect(0, 0, ww, wh);
       }
 
-      // ---- Upscale work canvas → main canvas (no smoothing = chunky pixels) ----
+      // ---- Upscale to main canvas (no smoothing = chunky pixels) ----
       ctx!.globalCompositeOperation = 'source-over';
       ctx!.globalAlpha = 1;
       ctx!.imageSmoothingEnabled = false;
       ctx!.drawImage(workCanvas, 0, 0, ww, wh, 0, 0, w, h);
 
-      // ---- Grain overlay at full resolution ----
+      // ---- Grain at full resolution ----
       drawGrain();
 
       raf = requestAnimationFrame(tick);
     }
 
     raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
   }, []);
 
   return (
