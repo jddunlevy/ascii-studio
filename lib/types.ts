@@ -7,7 +7,33 @@ export type VisualProperty =
   | 'y'
   | 'rotation'
   | 'opacity'
-  | 'content';
+  | 'content'
+  | 'blur'
+  | 'colorStop0Hue'
+  | 'colorStop1Hue'
+  | 'colorStop2Hue'
+  | 'colorStop3Hue'
+  | 'colorStop4Hue';
+
+export type BindingMode = 'continuous' | 'threshold';
+
+export type ThresholdAction = 'switch' | 'strobe' | 'pulse';
+
+export interface ContinuousTransform {
+  min: number;
+  max: number;
+  invert: boolean;
+}
+
+export interface ThresholdTransform {
+  threshold: number;           // 0-1, signal level that triggers
+  aboveValue: number | string; // value when signal >= threshold
+  belowValue: number | string; // value when signal < threshold
+  returnThreshold?: number;    // optional hysteresis (defaults to threshold)
+  action: ThresholdAction;     // how the transition happens
+  strobeSpeed?: number;        // ms per flash (for strobe action)
+  pulseDuration?: number;      // ms to hold above value (for pulse action)
+}
 
 export type VisualizerType = 'spectrum' | 'pulse' | 'text';
 
@@ -30,7 +56,7 @@ export interface SpectrumConfig {
   decaySpeed: number;         // how fast bars fall (0-1)
 }
 
-export type ElementType = 'text' | 'ascii_art' | 'divider' | 'decorative' | 'visualizer';
+export type ElementType = 'text' | 'ascii_art' | 'divider' | 'decorative' | 'visualizer' | 'aura';
 
 export type FontName =
   | 'jetbrains-mono'
@@ -55,8 +81,33 @@ export interface Binding {
   elementId: string;
   signal: SignalName;
   property: VisualProperty;
-  transform: Transform;
+  mode?: BindingMode;                        // NEW - optional for backward compat
+  transform?: Transform;                      // OLD - keep for migration
+  continuousTransform?: ContinuousTransform;  // NEW - required if mode === 'continuous'
+  thresholdTransform?: ThresholdTransform;    // NEW - required if mode === 'threshold'
   frames?: string[];
+  calibration?: BindingCalibration;           // NEW - optional per-binding calibration
+}
+
+export interface GlobalAudioConfig {
+  volumeSensitivity: number;    // 0.1 - 3.0, default 1.0
+  bassSensitivity: number;      // 0.1 - 3.0, default 1.0
+  midSensitivity: number;       // 0.1 - 3.0, default 1.0
+  trebleSensitivity: number;    // 0.1 - 3.0, default 1.0
+  noiseFloor: number;           // 0-0.2, default 0.05
+  signalSmoothing: number;      // 0-1, default 0.5
+}
+
+export interface ElementSensitivity {
+  enabled: boolean;
+  multiplier: number;           // 0.1 - 3.0, default 1.0
+}
+
+export interface BindingCalibration {
+  signalOffset: number;         // -1 to 1, default 0
+  signalMultiplier: number;     // 0.1 - 3.0, default 1.0
+  clampMin: number;             // 0-1, default 0
+  clampMax: number;             // 0-1, default 1
 }
 
 export interface LiveElementOverride {
@@ -84,6 +135,7 @@ interface BaseElement {
   color: ElementColor;
   locked: boolean;
   gradient?: boolean;
+  sensitivity?: ElementSensitivity;  // NEW - optional per-element calibration
 }
 
 export interface TextElement extends BaseElement {
@@ -123,12 +175,38 @@ export interface VisualizerElement extends BaseElement {
   content?: string;
 }
 
+export interface ColorStop {
+  position: number;  // 0-1, distance from center
+  color: string;     // hex color '#rrggbb'
+}
+
+export interface AuraElement extends BaseElement {
+  type: 'aura';
+  colorStops: ColorStop[];  // 2-5 stops, sorted by position
+  blur: number;             // 0-100, softness/glow intensity
+  blendMode?: 'normal' | 'screen' | 'overlay' | 'multiply';
+}
+
 export type Element =
   | TextElement
   | AsciiArtElement
   | DividerElement
   | DecorativeElement
-  | VisualizerElement;
+  | VisualizerElement
+  | AuraElement;
+
+export interface ElementPreset {
+  id: string;
+  name: string;
+  type: 'text' | 'ascii_art';
+  content: string;
+  createdAt: string;
+  tags?: string[];
+}
+
+export interface PresetLibrary {
+  presets: ElementPreset[];
+}
 
 export interface CanvasConfig {
   width: number;
@@ -153,4 +231,5 @@ export interface CompositionSpec {
   elements: Element[];
   bindings: Binding[];
   background?: BackgroundConfig;
+  globalAudioConfig?: GlobalAudioConfig;  // NEW - optional for backward compat
 }
