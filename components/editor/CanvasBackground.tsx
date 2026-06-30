@@ -5,43 +5,30 @@ import { audioEngine } from '@/lib/audio/audioEngine';
 import useStudioStore from '@/lib/store/studioStore';
 import { BeatDetector } from '@/lib/audio/BeatDetector';
 import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
-import type { LissajousColor } from '@/lib/types';
 
-// a:b ratio table — bass 0→1 maps index 0→5
-const RATIOS: Array<{ a: number; b: number }> = [
-  { a: 1, b: 1 }, // circle
-  { a: 1, b: 2 }, // figure-8
-  { a: 2, b: 3 }, // pretzel
-  { a: 3, b: 4 }, // complex knot
-  { a: 3, b: 5 }, // intricate
-  { a: 4, b: 5 }, // very intricate
+// Lissajous orbit params per blob slot (supports up to 5 blobs)
+const BLOB_ORBITS = [
+  { a: 2, b: 3, phase: 0 },
+  { a: 3, b: 4, phase: Math.PI * 0.66 },
+  { a: 1, b: 2, phase: Math.PI * 1.33 },
+  { a: 3, b: 5, phase: Math.PI },
+  { a: 4, b: 5, phase: Math.PI * 1.66 },
 ];
 
-function hexToRgb(hex: string): [number, number, number] {
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) return [200, 200, 200];
-  return [
-    parseInt(hex.slice(1, 3), 16),
-    parseInt(hex.slice(3, 5), 16),
-    parseInt(hex.slice(5, 7), 16),
-  ];
-}
+// Near-black for dark mode background
+const DARK_BG: [number, number, number] = [10, 8, 12];
 
-function lerpColor(colors: LissajousColor[], t: number): string {
-  // t is 0–1; interpolates linearly through the color array
-  if (colors.length === 0) return '#888888';
-  if (colors.length === 1) return colors[0].hex;
-  const scaled = Math.max(0, Math.min(1, t)) * (colors.length - 1);
-  const i = Math.min(Math.floor(scaled), colors.length - 2);
-  const f = scaled - i;
-  const [r0, g0, b0] = hexToRgb(colors[i].hex);
-  const [r1, g1, b1] = hexToRgb(colors[i + 1].hex);
-  return `rgb(${Math.round(r0 + f * (r1 - r0))},${Math.round(g0 + f * (g1 - g0))},${Math.round(b0 + f * (b1 - b0))})`;
+function hexToRgba(hex: string, alpha: number): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return `rgba(200,200,200,${alpha})`;
+  return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${alpha})`;
 }
 
 function parseCssColor(s: string): [number, number, number] {
-  const trimmed = s.trim();
-  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return hexToRgb(trimmed);
-  return [245, 240, 232]; // warm cream fallback
+  const t = s.trim();
+  if (/^#[0-9a-f]{6}$/i.test(t)) {
+    return [parseInt(t.slice(1, 3), 16), parseInt(t.slice(3, 5), 16), parseInt(t.slice(5, 7), 16)];
+  }
+  return [245, 240, 232];
 }
 
 export function CanvasBackground() {
@@ -56,21 +43,32 @@ export function CanvasBackground() {
     let raf: number;
     const beatDetector = new BeatDetector();
 
-    // Lissajous state — persists across frames
+    // Animation state
     let t = 0;
-    let aSmooth = 2;
-    let bSmooth = 3;
-    let delta = 0;
-    let beatFadeBoost = 0;
+    let beatPulse = 0;
 
-    // Read bg color from CSS custom property for the fade rect
-    const bgStyle = getComputedStyle(document.documentElement)
-      .getPropertyValue('--bg');
-    const [bgR, bgG, bgB] = parseCssColor(bgStyle);
+    // Light-mode bg color from CSS var (read once at mount)
+    const lightBg = parseCssColor(
+      getComputedStyle(document.documentElement).getPropertyValue('--bg')
+    );
 
-    // Resize canvas pixel dimensions to match layout — clears canvas content
+    // Grain offscreen canvas — created/recreated on resize
+    let grainCanvas: HTMLCanvasElement | null = null;
+    let grainCtx: CanvasRenderingContext2D | null = null;
+    let grainData: ImageData | null = null;
+    let grainFrame = 0;
+
+    function setupGrain(w: number, h: number) {
+      grainCanvas = document.createElement('canvas');
+      grainCanvas.width = w;
+      grainCanvas.height = h;
+      grainCtx = grainCanvas.getContext('2d');
+      if (grainCtx) grainData = grainCtx.createImageData(w, h);
+    }
+
     let lastW = 0;
     let lastH = 0;
+
     function resize() {
       const w = canvas!.offsetWidth;
       const h = canvas!.offsetHeight;
@@ -79,8 +77,10 @@ export function CanvasBackground() {
       lastH = h;
       canvas!.width = w;
       canvas!.height = h;
-      // Refill bg so canvas doesn't flash transparent after resize
-      ctx!.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+      setupGrain(w, h);
+      const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
+      const [r, g, b] = cfg.darkMode ? DARK_BG : lightBg;
+      ctx!.fillStyle = `rgb(${r},${g},${b})`;
       ctx!.fillRect(0, 0, w, h);
     }
 
@@ -88,12 +88,35 @@ export function CanvasBackground() {
     ro.observe(canvas);
     resize();
 
+    function drawGrain(isDark: boolean) {
+      if (!grainCanvas || !grainCtx || !grainData) return;
+      // Refresh grain data every 3 frames; composite every frame
+      grainFrame = (grainFrame + 1) % 3;
+      if (grainFrame === 0) {
+        const data = grainData.data;
+        const v = isDark ? 255 : 0;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = v;
+          data[i + 1] = v;
+          data[i + 2] = v;
+          data[i + 3] = Math.random() * 18 | 0; // 0–18 alpha (~7% max)
+        }
+        grainCtx.putImageData(grainData, 0, 0);
+      }
+      ctx!.globalCompositeOperation = 'source-over';
+      ctx!.globalAlpha = 0.45;
+      ctx!.drawImage(grainCanvas, 0, 0);
+      ctx!.globalAlpha = 1;
+    }
+
     function tick() {
-      const cfg =
-        useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
+      const cfg = useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
+      const isDark = cfg.darkMode ?? false;
 
       if (!cfg.enabled) {
-        ctx!.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+        ctx!.globalCompositeOperation = 'source-over';
+        const [r, g, b] = isDark ? DARK_BG : lightBg;
+        ctx!.fillStyle = `rgb(${r},${g},${b})`;
         ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
         raf = requestAnimationFrame(tick);
         return;
@@ -108,85 +131,63 @@ export function CanvasBackground() {
 
       const cx = w / 2;
       const cy = h / 2;
-      const halfMin = Math.min(cx, cy);
-
       const signals = audioEngine.getSignals();
-      const r = cfg.reactivity; // 0–1 scale factor for all audio influence
+      const r = cfg.reactivity;
 
-      // Beat detection → temporary fade acceleration
+      // Beat detection
       const beat = beatDetector.detectBeat(signals.bass, 0.65, 300);
-      if (beat) beatFadeBoost = 0.18;
-      beatFadeBoost = Math.max(0, beatFadeBoost - 0.006);
+      if (beat) beatPulse = 0.25;
+      beatPulse = Math.max(0, beatPulse - 0.008);
 
-      // Bass → a:b ratio (lerp toward target so shape morphs gradually)
-      const ratioIdx = Math.round(signals.bass * r * (RATIOS.length - 1));
-      const target = RATIOS[Math.min(ratioIdx, RATIOS.length - 1)];
-      aSmooth += (target.a - aSmooth) * 0.006;
-      bSmooth += (target.b - bSmooth) * 0.006;
+      // Advance Lissajous time (mid drives speed)
+      t += 0.006 + signals.mid * r * 0.01;
+      if (t > 1e6) t -= 1e6;
 
-      // Treble → phase δ increment (twists/rotates the figure)
-      const basePhaseInc = 0.003;
-      const treblePhaseInc = signals.treble * r * 0.018;
-      delta += basePhaseInc + treblePhaseInc;
-      delta %= Math.PI * 2;
+      // Phase shift from treble (twists orbit path)
+      const phaseShift = signals.treble * r * 0.8;
 
-      // Volume → amplitude (how much of the canvas the figure fills)
-      const baseAmp = 0.35;
-      const volumeAmp = signals.volume * r * 0.42;
-      const amp = Math.min(0.9, baseAmp + volumeAmp) * halfMin;
+      // Orbit spread from canvas center (volume widens orbits)
+      const spreadX = w * (0.2 + signals.volume * r * 0.08);
+      const spreadY = h * (0.2 + signals.volume * r * 0.08);
 
-      // Mid → frame advance (how much curve is traced per frame)
-      const baseAdvance = 0.04; // radians per frame at idle
-      const midAdvance = signals.mid * r * 0.12;
-      const frameAdvance = baseAdvance + midAdvance;
+      // Blob radius (base covers ~half canvas; volume + beat expand it)
+      const blobRadius =
+        Math.min(w, h) * 0.52 +
+        beatPulse * Math.min(w, h) * 0.18 +
+        signals.volume * r * Math.min(w, h) * 0.15;
 
-      // Fade: base rate + beat boost
-      const fadeAlpha = 0.014 + beatFadeBoost;
-
-      // ---- Fade old content toward bg color ----
+      // ---- Fade toward background ----
+      const [bgR, bgG, bgB] = isDark ? DARK_BG : lightBg;
+      const fadeAlpha = 0.028 + (beat ? 0.04 : 0);
       ctx!.globalCompositeOperation = 'source-over';
       ctx!.fillStyle = `rgba(${bgR},${bgG},${bgB},${fadeAlpha})`;
       ctx!.fillRect(0, 0, w, h);
 
-      // ---- Draw new curve segment ----
-      const POINTS = 80;
-      const TWO_PI = Math.PI * 2;
+      // ---- Draw blobs ----
+      ctx!.globalCompositeOperation = isDark ? 'screen' : 'source-over';
+      const colors = cfg.colors.length > 0 ? cfg.colors : DEFAULT_BACKGROUND.colors;
 
-      ctx!.globalCompositeOperation = cfg.glow ? 'lighter' : 'source-over';
-      ctx!.lineWidth = 1.5;
-      ctx!.lineCap = 'round';
+      for (let i = 0; i < colors.length; i++) {
+        const orbit = BLOB_ORBITS[i % BLOB_ORBITS.length];
+        const blobT = t + orbit.phase;
+        const bx = cx + spreadX * Math.sin(orbit.a * blobT + phaseShift);
+        const by = cy + spreadY * Math.sin(orbit.b * blobT);
 
-      for (let i = 0; i < POINTS; i++) {
-        const t0 = t + (i / POINTS) * frameAdvance;
-        const t1 = t + ((i + 1) / POINTS) * frameAdvance;
-
-        const x0 = cx + amp * Math.sin(aSmooth * t0 + delta);
-        const y0 = cy + amp * Math.sin(bSmooth * t0);
-        const x1 = cx + amp * Math.sin(aSmooth * t1 + delta);
-        const y1 = cy + amp * Math.sin(bSmooth * t1);
-
-        // Color position: cycles through palette once per 2π radians
-        const colorT = (t0 % TWO_PI) / TWO_PI;
-        ctx!.strokeStyle = lerpColor(cfg.colors, colorT);
-
-        ctx!.beginPath();
-        ctx!.moveTo(x0, y0);
-        ctx!.lineTo(x1, y1);
-        ctx!.stroke();
+        const grad = ctx!.createRadialGradient(bx, by, 0, bx, by, blobRadius);
+        grad.addColorStop(0,    hexToRgba(colors[i].hex, isDark ? 0.88 : 0.60));
+        grad.addColorStop(0.45, hexToRgba(colors[i].hex, isDark ? 0.35 : 0.22));
+        grad.addColorStop(1,    hexToRgba(colors[i].hex, 0));
+        ctx!.fillStyle = grad;
+        ctx!.fillRect(0, 0, w, h);
       }
 
-      t += frameAdvance;
-      // Prevent unbounded growth of t (safe wrap at large value)
-      if (t > 1e6) t -= 1e6;
-
-      // Reset composite op so subsequent canvas operations aren't affected
-      ctx!.globalCompositeOperation = 'source-over';
+      // ---- Grain overlay ----
+      drawGrain(isDark);
 
       raf = requestAnimationFrame(tick);
     }
 
     raf = requestAnimationFrame(tick);
-
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
