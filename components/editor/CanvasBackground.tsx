@@ -18,6 +18,7 @@ const RATIOS: Array<{ a: number; b: number }> = [
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return [200, 200, 200];
   return [
     parseInt(hex.slice(1, 3), 16),
     parseInt(hex.slice(3, 5), 16),
@@ -92,6 +93,8 @@ export function CanvasBackground() {
         useStudioStore.getState().composition?.background ?? DEFAULT_BACKGROUND;
 
       if (!cfg.enabled) {
+        ctx!.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+        ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
         raf = requestAnimationFrame(tick);
         return;
       }
@@ -125,6 +128,7 @@ export function CanvasBackground() {
       const basePhaseInc = 0.003;
       const treblePhaseInc = signals.treble * r * 0.018;
       delta += basePhaseInc + treblePhaseInc;
+      delta %= Math.PI * 2;
 
       // Volume → amplitude (how much of the canvas the figure fills)
       const baseAmp = 0.35;

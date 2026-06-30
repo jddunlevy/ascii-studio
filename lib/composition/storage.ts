@@ -1,12 +1,24 @@
 import type { CompositionSpec } from '@/lib/types';
+import { DEFAULT_BACKGROUND } from '@/lib/composition/defaults';
 
 const STORAGE_KEY = 'ascii-studio:compositions';
+
+function migrateBackground(comp: CompositionSpec): CompositionSpec {
+  const bg = comp.background as Record<string, unknown> | undefined;
+  if (bg && 'baseHue' in bg) {
+    return { ...comp, background: { ...DEFAULT_BACKGROUND } };
+  }
+  return comp;
+}
 
 function readAll(): Record<string, CompositionSpec> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) as Record<string, CompositionSpec>;
+    const parsed = JSON.parse(raw) as Record<string, CompositionSpec>;
+    return Object.fromEntries(
+      Object.entries(parsed).map(([id, comp]) => [id, migrateBackground(comp)])
+    );
   } catch {
     return {};
   }
